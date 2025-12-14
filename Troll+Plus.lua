@@ -1,6 +1,6 @@
 -- ============================================================================
 -- Troll+Plus Exodus API Conversion
--- Version 1.1
+-- Version 1.2
 --
 -- IMPORTANT CONVERSION NOTES:
 -- This script has been converted to Exodus API following official documentation.
@@ -12,6 +12,8 @@
 -- 4. math.getRandomFloat/Int/pi() -> standard Lua math functions
 -- 5. math.getDistance -> manual calculation
 -- 6. Removed invalid script.register_looped() (not in Exodus API)
+-- 7. natives.namespace_functionName -> native.namespace.function_name
+--    (All 80 unique native functions converted to RDR3 NativeDB format)
 --
 -- NEEDS VERIFICATION:
 -- - spawner.*: May need to use game.* or native functions
@@ -22,11 +24,12 @@
 -- - Continuous/looped functionality marked with TODO comments
 --
 -- See https://docs.exodusmenu.com/scripting/ for Exodus API reference
+-- See https://alloc8or.re/rdr3/nativedb/ for RDR3 Native documentation
 -- ============================================================================
 
 -- Initialization
 log.info('<#FFFF00>[<b>Troll+Plus: <#FFFFFF>Loaded!</#FFFF00></b><#FFFF00>]')
-toast.show("Have fun trolling :)", "Version 1.1")
+toast.show("Have fun trolling :)", "Version 1.2")
 
 -- ============================================================================
 -- WARNING: This script uses the following APIs that are NOT documented in 
