@@ -72,7 +72,7 @@ local vehicle_models = {
 
 local function ram_player(player_idx)
     local target_x, target_y, target_z = player.getCoords(player_idx)
-    local target_velocity_x, target_velocity_y, target_velocity_z = natives.entity_getEntityVelocity(player.getPed(player_idx), 0)
+    local target_velocity_x, target_velocity_y, target_velocity_z = native.entity.get_entity_velocity(player.getPed(player_idx), 0)
 
     local prediction_time = 1.0
     local predicted_x = target_x + target_velocity_x * prediction_time
@@ -90,10 +90,10 @@ local function ram_player(player_idx)
     if vehicle then
         local dx = predicted_x - spawn_x
         local dy = predicted_y - spawn_y
-        local heading = natives.misc_getHeadingFromVector2d(dx, dy)
-        natives.entity_setEntityHeading(vehicle, heading)
+        local heading = native.misc.get_heading_from_vector_2d(dx, dy)
+        native.entity.set_entity_heading(vehicle, heading)
         thread.sleep(150)
-        natives.vehicle_setVehicleForwardSpeed(vehicle, 30.0)
+        native.vehicle.set_vehicle_forward_speed(vehicle, 30.0)
     else
         log.error("ERROR: Failed to spawn vehicle.")
         toast.show("ERROR:", "Failed to spawn vehicle.")
@@ -103,40 +103,40 @@ end
 local function kidnap_player(player_idx)
     local player_ped = player.getPed(player_idx)
 
-    if natives.ped_isPedOnMount(player_ped) then
+    if native.ped.is_ped_on_mount(player_ped) then
         log.error("ERROR: Player is on a mount.")
         toast.show("ERROR", "Player is on a mount.")
         return
     end
 
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
         log.error("ERROR: Player is in a vehicle.")
         toast.show("ERROR", "Player is in a vehicle.")
         return
     end
 
-    if natives.player_isPlayerRidingTrain(player_idx) then
+    if native.player.is_player_riding_train(player_idx) then
         log.error("ERROR: Player is on a train.")
         toast.show("ERROR", "Player is on a train.")
         return
     end
 
-    if natives.task_isPedStill(player_ped) then
+    if native.task.is_ped_still(player_ped) then
         toast.show("Status", "Running...")
         thread.sleep(800)
 
-        if natives.task_isPedStill(player_ped) then
+        if native.task.is_ped_still(player_ped) then
             local local_ped = player.getLocalPed()
             local x, y, z = player.getCoords(player_idx)
             local kidnap_vehicle = spawner.spawnVehicle(0xC2D200FE, x, y, z - 1, false, true)
 
             if kidnap_vehicle then
-                if not natives.network_networkHasControlOfEntity(kidnap_vehicle) then
+                if not native.network.network_has_control_of_entity(kidnap_vehicle) then
                     utility.requestControlOfEntity(kidnap_vehicle, 50)
                 end
-                local target_pitch, target_roll, target_yaw = natives.entity_getEntityRotation(player_ped, 2)
-                natives.entity_setEntityRotation(kidnap_vehicle, target_pitch, target_roll, target_yaw, 2, true)
-                natives.ped_setPedIntoVehicle(local_ped, kidnap_vehicle, -1)
+                local target_pitch, target_roll, target_yaw = native.entity.get_entity_rotation(player_ped, 2)
+                native.entity.set_entity_rotation(kidnap_vehicle, target_pitch, target_roll, target_yaw, 2, true)
+                native.ped.set_ped_into_vehicle(local_ped, kidnap_vehicle, -1)
                 toast.show("Status", "Finished.")
             else
                 log.error("ERROR: Failed to kidnap player.")
@@ -158,8 +158,8 @@ local function set_player_on_fire(player_idx)
   local fire_object = spawner.spawnObject(0x9D3C5512, x, y, z, true)
 
   if fire_object then
-      natives.entity_setEntityAlpha(fire_object, 0, false)
-      natives.entity_attachEntityToEntity(fire_object, player_ped, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, true, true, true, true, 0, true, true, true)
+      native.entity.set_entity_alpha(fire_object, 0, false)
+      native.entity.attach_entity_to_entity(fire_object, player_ped, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, true, true, true, true, 0, true, true, true)
   else
       log.error("ERROR: Failed to spawn fire object.")
       toast.show("ERROR", "Failed to spawn fire object.")
@@ -193,7 +193,7 @@ local function spawn_attacker(player_idx)
 
   local attacker_ped
   if clone_player then
-      attacker_ped = natives.ped_clonePed(player_ped, true, true, true)
+      attacker_ped = native.ped.clone_ped(player_ped, true, true, true)
   else
       attacker_ped = spawner.spawnPed(random_model_hash, x, y, z, true)
   end
@@ -201,20 +201,20 @@ local function spawn_attacker(player_idx)
   if attacker_ped then
       table.insert(spawned_attackers, attacker_ped)
       if godmode_peds then
-          natives.entity_setEntityInvincible(attacker_ped, true)
+          native.entity.set_entity_invincible(attacker_ped, true)
       end
       if peds_have_weapons then
-        natives.weapon_giveDelayedWeaponToPed(attacker_ped, 0x772C8DD6, 69000, true, 0x2CD419DC)
-        natives.weapon_setCurrentPedWeapon(attacker_ped, 0x772C8DD6, true, 0, false, false)
+        native.weapon.give_delayed_weapon_to_ped(attacker_ped, 0x772C8DD6, 69000, true, 0x2CD419DC)
+        native.weapon.set_current_ped_weapon(attacker_ped, 0x772C8DD6, true, 0, false, false)
     else
-        natives.weapon_removeAllPedWeapons(attacker_ped, true, true)
+        native.weapon.remove_all_ped_weapons(attacker_ped, true, true)
     end
 
-      natives.ped_setPedCombatAbility(attacker_ped, combat_level)
-      natives.ped_setPedAccuracy(attacker_ped, accuracy)
-      natives.task_taskCombatPed(attacker_ped, player_ped, 0, 16)
-      natives.ped_setPedCombatRange(attacker_ped, 4)
-      natives.ped_setPedCombatMovement(attacker_ped, 3)
+      native.ped.set_ped_combat_ability(attacker_ped, combat_level)
+      native.ped.set_ped_accuracy(attacker_ped, accuracy)
+      native.task.task_combat_ped(attacker_ped, player_ped, 0, 16)
+      native.ped.set_ped_combat_range(attacker_ped, 4)
+      native.ped.set_ped_combat_movement(attacker_ped, 3)
   else
       log.error("ERROR: Failed to spawn attacker.")
       toast.show("ERROR", "Failed to spawn attacker.")
@@ -289,7 +289,7 @@ local function attach_object_to_player(player_idx, model_hash, bone_index, xOffs
   if player_ped then
       local object = spawner.spawnObject(model_hash, 0.0, 0.0, 0.0, true)
       if object then
-          natives.entity_attachEntityToEntity(object, player_ped, bone_index, xOffset, yOffset, zOffset, xRot, yRot, zRot, true, true, true, true, 0, true, true, true)
+          native.entity.attach_entity_to_entity(object, player_ped, bone_index, xOffset, yOffset, zOffset, xRot, yRot, zRot, true, true, true, true, 0, true, true, true)
       else
           log.error("ERROR: Failed to spawn object for attachment.")
       end
@@ -353,16 +353,16 @@ local selected_object_cage_type = 1
 local selected_animal_cage_type = 1
 
 local function apply_settings(entity, target_x, target_y)
-  natives.entity_freezeEntityPosition(entity, true)
-  natives.entity_setEntityInvincible(entity, true)
-  local ex, ey = natives.entity_getEntityCoords(entity, false, false)
-  local heading = natives.misc_getHeadingFromVector2d(target_x - ex, target_y - ey)
+  native.entity.freeze_entity_position(entity, true)
+  native.entity.set_entity_invincible(entity, true)
+  local ex, ey = native.entity.get_entity_coords(entity, false, false)
+  local heading = native.misc.get_heading_from_vector_2d(target_x - ex, target_y - ey)
 
-  if natives.entity_isEntityAVehicle(entity) then
-      natives.entity_setEntityHeading(entity, heading)
-      natives.entity_setEntityRotation(entity, 90.0, 180.0, heading, 2, true)
+  if native.entity.is_entity_a_vehicle(entity) then
+      native.entity.set_entity_heading(entity, heading)
+      native.entity.set_entity_rotation(entity, 90.0, 180.0, heading, 2, true)
   else
-      natives.entity_setEntityHeading(entity, heading)
+      native.entity.set_entity_heading(entity, heading)
   end
 end
 
@@ -370,10 +370,10 @@ local function manage_cage_entities(player_idx, entities)
     local px, py, _ = player.getCoords(player_idx)
     for _, entity in ipairs(entities) do
         apply_settings(entity, px, py)
-        if natives.entity_isEntityAPed(entity) and natives.ped_isPedHuman(entity) then
+        if native.entity.is_entity_a_ped(entity) and native.ped.is_ped_human(entity) then
             local emote = emotes[selected_emote_index]
             if emote.hash then
-                natives.task_taskPlayEmoteWithHash(entity, 0, 1, emote.hash, true, true, false, false, true)
+                native.task.task_play_emote_with_hash(entity, 0, 1, emote.hash, true, true, false, false, true)
             end
         end
         table.insert(spawned_entities, entity)
@@ -441,12 +441,12 @@ end
 
 local function remove_cage(cage_entities)
     for _, entity in ipairs(cage_entities) do
-        if entity and natives.entity_doesEntityExist(entity) then
-            if natives.entity_isEntityAPed(entity) then
+        if entity and native.entity.does_entity_exist(entity) then
+            if native.entity.is_entity_a_ped(entity) then
                 spawner.deletePed(entity)
-            elseif natives.entity_isEntityAVehicle(entity) then
+            elseif native.entity.is_entity_a_vehicle(entity) then
                 spawner.deleteVehicle(entity)
-            elseif natives.entity_isEntityAnObject(entity) then
+            elseif native.entity.is_entity_an_object(entity) then
                 spawner.deleteObject(entity)
             end
         end
@@ -456,7 +456,7 @@ end
 local function get_cage_center(cage_entities)
   local sum_x, sum_y, sum_z = 0, 0, 0
   for _, entity in ipairs(cage_entities) do
-      local ex, ey, ez = natives.entity_getEntityCoords(entity, false, false)
+      local ex, ey, ez = native.entity.get_entity_coords(entity, false, false)
       sum_x = sum_x + ex
       sum_y = sum_y + ey
       sum_z = sum_z + ez
@@ -546,11 +546,11 @@ end)
 
 local function remove_all_spawned_entities()
   for _, entity in ipairs(spawned_entities) do
-      if natives.entity_isEntityAPed(entity) then
+      if native.entity.is_entity_a_ped(entity) then
           spawner.deletePed(entity)
-      elseif natives.entity_isEntityAVehicle(entity) then
+      elseif native.entity.is_entity_a_vehicle(entity) then
           spawner.deleteVehicle(entity)
-      elseif natives.entity_isEntityAnObject(entity) then
+      elseif native.entity.is_entity_an_object(entity) then
           spawner.deleteObject(entity)
       end
   end
@@ -564,10 +564,10 @@ end)
 -- Vehicle
 local function fix_vehicle(player_idx)
     local player_ped = player.getPed(player_idx)
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
         if utility.requestControlOfEntity(vehicle, 50) then
-            natives.vehicle_setVehicleFixed(vehicle)
+            native.vehicle.set_vehicle_fixed(vehicle)
         else
             log.error("ERROR: Failed to gain control of vehicle.")
             toast.show("ERROR", "Failed to gain control of vehicle.")
@@ -580,10 +580,10 @@ end
 
 local function godmode_vehicle(player_idx)
     local player_ped = player.getPed(player_idx)
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
         if utility.requestControlOfEntity(vehicle, 50) then
-            natives.entity_setEntityInvincible(vehicle, true)
+            native.entity.set_entity_invincible(vehicle, true)
         else
             log.error("ERROR: Failed to gain control of vehicle.")
             toast.show("ERROR", "Failed to gain control of vehicle.")
@@ -596,10 +596,10 @@ end
 
 local function remove_godmode_vehicle(player_idx)
     local player_ped = player.getPed(player_idx)
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
         if utility.requestControlOfEntity(vehicle, 50) then
-            natives.entity_setEntityInvincible(vehicle, false)
+            native.entity.set_entity_invincible(vehicle, false)
         else
             log.error("ERROR: Failed to gain control of vehicle.")
             toast.show("ERROR", "Failed to gain control of vehicle.")
@@ -612,10 +612,10 @@ end
 
 local function invisible_vehicle(player_idx)
     local player_ped = player.getPed(player_idx)
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
         if utility.requestControlOfEntity(vehicle, 50) then
-            natives.entity_setEntityAlpha(vehicle, 0, false)
+            native.entity.set_entity_alpha(vehicle, 0, false)
         else
             log.error("ERROR: Failed to gain control of vehicle.")
             toast.show("ERROR", "Failed to gain control of vehicle.")
@@ -628,10 +628,10 @@ end
 
 local function remove_invisibility(player_idx)
     local player_ped = player.getPed(player_idx)
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
         if utility.requestControlOfEntity(vehicle, 50) then
-            natives.entity_resetEntityAlpha(vehicle)
+            native.entity.reset_entity_alpha(vehicle)
         else
             log.error("ERROR: Failed to gain control of vehicle.")
             toast.show("ERROR", "Failed to gain control of vehicle.")
@@ -644,10 +644,10 @@ end
 
 local function lock_vehicle(player_idx)
     local player_ped = player.getPed(player_idx)
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
         if utility.requestControlOfEntity(vehicle, 50) then
-            natives.vehicle_setVehicleDoorsLocked(vehicle, 4)
+            native.vehicle.set_vehicle_doors_locked(vehicle, 4)
         else
             log.error("ERROR: Failed to gain control of vehicle.")
             toast.show("ERROR", "Failed to gain control of vehicle.")
@@ -660,10 +660,10 @@ end
 
 local function unlock_vehicle(player_idx)
     local player_ped = player.getPed(player_idx)
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
         if utility.requestControlOfEntity(vehicle, 50) then
-            natives.vehicle_setVehicleDoorsLocked(vehicle, 1)
+            native.vehicle.set_vehicle_doors_locked(vehicle, 1)
         else
             log.error("ERROR: Failed to gain control of vehicle.")
             toast.show("ERROR", "Failed to gain control of vehicle.")
@@ -676,10 +676,10 @@ end
 
 local function stop_vehicle(player_idx)
     local player_ped = player.getPed(player_idx)
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
         if utility.requestControlOfEntity(vehicle, 50) then
-            natives.entity_setEntityVelocity(vehicle, 0.0, 0.0, 0.0)
+            native.entity.set_entity_velocity(vehicle, 0.0, 0.0, 0.0)
         else
             log.error("ERROR: Failed to gain control of vehicle.")
             toast.show("ERROR", "Failed to gain control of vehicle.")
@@ -693,10 +693,10 @@ end
 local vehicle_boost_speed = 50.0
 local function boost_vehicle(player_idx, speed)
     local player_ped = player.getPed(player_idx)
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
         if utility.requestControlOfEntity(vehicle, 50) then
-            natives.vehicle_setVehicleForwardSpeed(vehicle, speed or vehicle_boost_speed)
+            native.vehicle.set_vehicle_forward_speed(vehicle, speed or vehicle_boost_speed)
         else
             log.error("ERROR: Failed to gain control of vehicle.")
             toast.show("ERROR", "Failed to gain control of vehicle.")
@@ -709,10 +709,10 @@ end
 
 local function launch_vehicle(player_idx)
     local player_ped = player.getPed(player_idx)
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
         if utility.requestControlOfEntity(vehicle, 50) then
-            natives.entity_setEntityVelocity(vehicle, 0.0, 0.0, vehicle_boost_speed)
+            native.entity.set_entity_velocity(vehicle, 0.0, 0.0, vehicle_boost_speed)
         else
             log.error("ERROR: Failed to gain control of vehicle.")
             toast.show("ERROR", "Failed to gain control of vehicle.")
@@ -726,12 +726,12 @@ end
 local function teleport_into_vehicle(player_idx)
     local local_ped = player.getLocalPed()
     local player_ped = player.getPed(player_idx)
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
-        if natives.vehicle_areAnyVehicleSeatsFree(vehicle) then
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
+        if native.vehicle.are_any_vehicle_seats_free(vehicle) then
             for seat = -1, 4 do
-                if natives.vehicle_isVehicleSeatFree(vehicle, seat) then
-                    natives.ped_setPedIntoVehicle(local_ped, vehicle, seat)
+                if native.vehicle.is_vehicle_seat_free(vehicle, seat) then
+                    native.ped.set_ped_into_vehicle(local_ped, vehicle, seat)
                     return
                 end
             end
@@ -750,10 +750,10 @@ end
 local function break_off_wheel(player_idx)
     local wheelIndex = math.random(0, 4)
     local player_ped = player.getPed(player_idx)
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
         if utility.requestControlOfEntity(vehicle, 50) then
-            natives.vehicle_breakOffVehicleWheel(vehicle, wheelIndex)
+            native.vehicle.break_off_vehicle_wheel(vehicle, wheelIndex)
         else
             log.error("ERROR: Failed to gain control of vehicle.")
             toast.show("ERROR", "Failed to gain control of vehicle.")
@@ -766,10 +766,10 @@ end
 
 local function explode_vehicle(player_idx)
     local player_ped = player.getPed(player_idx)
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
         if utility.requestControlOfEntity(vehicle, 50) then
-            natives.vehicle_explodeVehicle(vehicle, true, true, 0, 0)
+            native.vehicle.explode_vehicle(vehicle, true, true, 0, 0)
         else
             log.error("ERROR: Failed to gain control of vehicle.")
             toast.show("ERROR", "Failed to gain control of vehicle.")
@@ -782,8 +782,8 @@ end
 
 local function delete_vehicle(player_idx)
     local player_ped = player.getPed(player_idx)
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
         if utility.requestControlOfEntity(vehicle, 50) then
             spawner.deleteVehicle(vehicle)
         else
@@ -798,11 +798,11 @@ end
 
 local function rotate_vehicle(player_idx, degrees)
     local player_ped = player.getPed(player_idx)
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
         if utility.requestControlOfEntity(vehicle, 50) then
-            local pitch, roll, yaw = natives.entity_getEntityRotation(vehicle, 2)
-            natives.entity_setEntityRotation(vehicle, pitch, roll, yaw + degrees, 2, true)
+            local pitch, roll, yaw = native.entity.get_entity_rotation(vehicle, 2)
+            native.entity.set_entity_rotation(vehicle, pitch, roll, yaw + degrees, 2, true)
         else
             log.error("ERROR: Failed to gain control of vehicle.")
             toast.show("ERROR", "Failed to gain control of vehicle.")
@@ -884,11 +884,11 @@ end)
 -- Horse
 local function buck_off_player(player_idx)
   local player_ped = player.getPed(player_idx)
-  if natives.ped_isPedOnMount(player_ped) then
-      local horse = natives.ped_getMount(player_ped)
+  if native.ped.is_ped_on_mount(player_ped) then
+      local horse = native.ped.get_mount(player_ped)
       if horse then
           utility.requestControlOfEntity(horse, 50)
-          natives.task_taskHorseAction(horse, 2, horse, 0)
+          native.task.task_horse_action(horse, 2, horse, 0)
       else
           log.error("ERROR: Player is on a mount, but unable to get the horse entity.")
           toast.show("ERROR", "Player is on a mount, but unable to get the horse entity.")
@@ -903,7 +903,7 @@ local buck_off_task
 local function buck_off_loop(player_idx)
     if buck_off_task then
         local player_ped = player.getPed(player_idx)
-        if natives.ped_isPedOnMount(player_ped) then
+        if native.ped.is_ped_on_mount(player_ped) then
             buck_off_player(player_idx)
         end
         thread.sleep(2000)
@@ -915,15 +915,15 @@ local function come_to_me(player_idx)
   local local_ped = player.getLocalPed()
   local horse = nil
 
-  if natives.ped_isPedOnMount(player_ped) then
-      horse = natives.ped_getMount(player_ped)
+  if native.ped.is_ped_on_mount(player_ped) then
+      horse = native.ped.get_mount(player_ped)
   else
-      horse = natives.ped_getLastMount(player_ped)
+      horse = native.ped.get_last_mount(player_ped)
   end
 
-  if horse and not natives.entity_isEntityDead(horse) then
+  if horse and not native.entity.is_entity_dead(horse) then
       if utility.requestControlOfEntity(horse, 50) then
-        natives.task_taskGoToEntity(horse, local_ped, -1, 1.0, 5.0, 0.0, 0)
+        native.task.task_go_to_entity(horse, local_ped, -1, 1.0, 5.0, 0.0, 0)
       else
           log.error("ERROR: Failed to gain control of horse.")
           toast.show("ERROR", "Failed to gain control of horse.")
@@ -939,20 +939,20 @@ local function steal_mount(player_idx)
     local local_ped = player.getLocalPed()
     local horse = nil
 
-    if natives.ped_isPedOnMount(player_ped) then
-        horse = natives.ped_getMount(player_ped)
+    if native.ped.is_ped_on_mount(player_ped) then
+        horse = native.ped.get_mount(player_ped)
     else
-        horse = natives.ped_getLastMount(player_ped)
-        if horse and natives.entity_isEntityDead(horse) then
+        horse = native.ped.get_last_mount(player_ped)
+        if horse and native.entity.is_entity_dead(horse) then
             horse = nil
         end
     end
 
-    if horse and not natives.entity_isEntityDead(horse) then
+    if horse and not native.entity.is_entity_dead(horse) then
         if utility.requestControlOfEntity(horse, 50) then
-            if natives.ped_isPedOnMount(player_ped) then
+            if native.ped.is_ped_on_mount(player_ped) then
                 toast.show("Status", "Running...")
-                natives.task_taskHorseAction(horse, 2, horse, 0)
+                native.task.task_horse_action(horse, 2, horse, 0)
 
                 local start_time = time.milliseconds()
                 local steal_mount_task = function()
@@ -960,18 +960,18 @@ local function steal_mount(player_idx)
                     if (current_time - start_time) > 10000 then
                         toast.show("ERROR", "Operation timed out.")
                         log.error("ERROR: Operation timed out.")
-                    elseif not natives.network_networkHasControlOfEntity(horse) then
+                    elseif not native.network.network_has_control_of_entity(horse) then
                         utility.requestControlOfEntity(horse, 50)
-                    elseif natives.ped_isMountSeatFree(horse, -1) and natives.ped_canPedBeMounted(horse) then
-                        natives.ped_setMountSecurityEnabled(horse, false)
-                        natives.ped_setPedOntoMount(local_ped, horse, -1, true)
+                    elseif native.ped.is_mount_seat_free(horse, -1) and native.ped.can_ped_be_mounted(horse) then
+                        native.ped.set_mount_security_enabled(horse, false)
+                        native.ped.set_ped_onto_mount(local_ped, horse, -1, true)
                         toast.show("Status", "Finished.")
                     end
                 end
                 -- TODO: Implement continuous mount steal monitoring with proper Exodus pattern
             else
-                natives.ped_setMountSecurityEnabled(horse, false)
-                natives.ped_setPedOntoMount(local_ped, horse, -1, true)
+                native.ped.set_mount_security_enabled(horse, false)
+                native.ped.set_ped_onto_mount(local_ped, horse, -1, true)
             end
         else
             log.error("ERROR: Failed to gain control of horse.")
@@ -987,15 +987,15 @@ local function ragdoll_horse(player_idx)
   local player_ped = player.getPed(player_idx)
   local horse = nil
 
-  if natives.ped_isPedOnMount(player_ped) then
-      horse = natives.ped_getMount(player_ped)
+  if native.ped.is_ped_on_mount(player_ped) then
+      horse = native.ped.get_mount(player_ped)
   else
-      horse = natives.ped_getLastMount(player_ped)
+      horse = native.ped.get_last_mount(player_ped)
   end
 
-  if horse and not natives.entity_isEntityDead(horse) then
+  if horse and not native.entity.is_entity_dead(horse) then
       if utility.requestControlOfEntity(horse, 50) then
-          natives.ped_setPedToRagdoll(horse, 1000, 1000, 0, false, false, false)
+          native.ped.set_ped_to_ragdoll(horse, 1000, 1000, 0, false, false, false)
       else
           log.error("ERROR: Failed to gain control of horse.")
       end
@@ -1009,16 +1009,16 @@ local function launch_horse(player_idx)
   local player_ped = player.getPed(player_idx)
   local horse = nil
 
-  if natives.ped_isPedOnMount(player_ped) then
-      horse = natives.ped_getMount(player_ped)
+  if native.ped.is_ped_on_mount(player_ped) then
+      horse = native.ped.get_mount(player_ped)
   else
-      horse = natives.ped_getLastMount(player_ped)
+      horse = native.ped.get_last_mount(player_ped)
   end
 
-  if horse and not natives.entity_isEntityDead(horse) then
+  if horse and not native.entity.is_entity_dead(horse) then
       if utility.requestControlOfEntity(horse, 50) then
-          local x, y, z = natives.entity_getEntityCoords(horse, false, false)
-          natives.entity_setEntityVelocity(horse, 0.0, 0.0, 100.0)
+          local x, y, z = native.entity.get_entity_coords(horse, false, false)
+          native.entity.set_entity_velocity(horse, 0.0, 0.0, 100.0)
           log.info("INFO: Launched horse.")
       else
           log.error("ERROR: Failed to gain control of horse.")
@@ -1034,22 +1034,22 @@ local function set_horse_on_fire(player_idx)
   local player_ped = player.getPed(player_idx)
   local horse = nil
 
-  if natives.ped_isPedOnMount(player_ped) then
-      horse = natives.ped_getMount(player_ped)
+  if native.ped.is_ped_on_mount(player_ped) then
+      horse = native.ped.get_mount(player_ped)
   else
-      horse = natives.ped_getLastMount(player_ped)
-      if horse and natives.entity_isEntityDead(horse) then
+      horse = native.ped.get_last_mount(player_ped)
+      if horse and native.entity.is_entity_dead(horse) then
           horse = nil
       end
   end
 
   if horse then
-      local x, y, z = natives.entity_getEntityCoords(horse, false, false)
+      local x, y, z = native.entity.get_entity_coords(horse, false, false)
       local fire_object = spawner.spawnObject(0x9D3C5512, x, y, z, true)
 
       if fire_object then
-          natives.entity_setEntityAlpha(fire_object, 0, false)
-          natives.entity_attachEntityToEntity(fire_object, horse, 4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, true, true, true, true, 0, true, true, true)
+          native.entity.set_entity_alpha(fire_object, 0, false)
+          native.entity.attach_entity_to_entity(fire_object, horse, 4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, true, true, true, true, 0, true, true, true)
       else
           log.error("ERROR: Failed to spawn fire object.")
           toast.show("ERROR", "Failed to spawn fire object.")
@@ -1064,15 +1064,15 @@ local function make_horse_bleed_out(player_idx)
   local player_ped = player.getPed(player_idx)
   local horse = nil
 
-  if natives.ped_isPedOnMount(player_ped) then
-      horse = natives.ped_getMount(player_ped)
+  if native.ped.is_ped_on_mount(player_ped) then
+      horse = native.ped.get_mount(player_ped)
   else
-      horse = natives.ped_getLastMount(player_ped)
+      horse = native.ped.get_last_mount(player_ped)
   end
 
-  if horse and not natives.entity_isEntityDead(horse) then
+  if horse and not native.entity.is_entity_dead(horse) then
       if utility.requestControlOfEntity(horse, 50) then
-          natives.task_taskAnimalBleedOut(horse, 0, false, 0, 0, 0, 0)
+          native.task.task_animal_bleed_out(horse, 0, false, 0, 0, 0, 0)
       else
           log.error("ERROR: Failed to gain control of horse.")
       end
@@ -1086,15 +1086,15 @@ local function kill_horse(player_idx)
   local player_ped = player.getPed(player_idx)
   local horse = nil
 
-  if natives.ped_isPedOnMount(player_ped) then
-      horse = natives.ped_getMount(player_ped)
+  if native.ped.is_ped_on_mount(player_ped) then
+      horse = native.ped.get_mount(player_ped)
   else
-      horse = natives.ped_getLastMount(player_ped)
+      horse = native.ped.get_last_mount(player_ped)
   end
 
-  if horse and not natives.entity_isEntityDead(horse) then
+  if horse and not native.entity.is_entity_dead(horse) then
       if utility.requestControlOfEntity(horse, 50) then
-          natives.ped_applyDamageToPed(horse, 1000, 0, 0, 0)
+          native.ped.apply_damage_to_ped(horse, 1000, 0, 0, 0)
       else
           log.error("ERROR: Failed to gain control of horse.")
           toast.show("ERROR", "Failed to gain control of horse.")
@@ -1158,10 +1158,10 @@ local explosion_delay = 1000
 
 local function trigger_explosion(x, y, z, blame_player_ped)
     if x and y and z then
-        if blame_player_ped and natives.entity_doesEntityExist(blame_player_ped) then
-            natives.fire_addOwnedExplosion(blame_player_ped, x, y, z, explosion_type, damage_scale, is_audible, is_invisible, camera_shake)
+        if blame_player_ped and native.entity.does_entity_exist(blame_player_ped) then
+            native.fire.add_owned_explosion(blame_player_ped, x, y, z, explosion_type, damage_scale, is_audible, is_invisible, camera_shake)
         else
-            natives.fire_addExplosion(x, y, z, explosion_type, damage_scale, is_audible, is_invisible, camera_shake)
+            native.fire.add_explosion(x, y, z, explosion_type, damage_scale, is_audible, is_invisible, camera_shake)
         end
     else
         log.error('ERROR: Explosion coordinates are invalid.')
@@ -1183,7 +1183,7 @@ local explode_player_task
 menu.addToggleButton(explosions_id, 'Explode Player Toggle', '', false, function(toggle, player_idx)
     if toggle then
         explode_player_task = function()
-            if not natives.network_networkIsPlayerConnected(player_idx) then
+            if not native.network.network_is_player_connected(player_idx) then
                 explode_player_task = nil
                 return
             end
@@ -1211,7 +1211,7 @@ menu.addToggleButton(explosions_id, 'Blame Explode Lobby Toggle', '', false, fun
     selected_player_ped_to_blame = player.getPed(player_idx)
     if toggle then
         explode_lobby_task = function()
-            if not natives.network_networkIsPlayerConnected(player_idx) then
+            if not native.network.network_is_player_connected(player_idx) then
                 explode_lobby_task = nil
                 return
             end
@@ -1261,11 +1261,11 @@ local function start_ptfx(asset_name, effect_name, player_idx, scale)
       return
   end
 
-  natives.graphics_useParticleFxAsset(asset_name)
+  native.graphics.use_particle_fx_asset(asset_name)
   local x, y, z = player.getCoords(player_idx)
 
   if x and y and z then
-      natives.graphics_startNetworkedParticleFxNonLoopedAtCoord(effect_name, x, y, z, 0.0, 0.0, 0.0, scale, false, false, false)
+      native.graphics.start_networked_particle_fx_non_looped_at_coord(effect_name, x, y, z, 0.0, 0.0, 0.0, scale, false, false, false)
   else
       log.error("ERROR: Failed to get player coordinates for PTFX.")
       toast.show("ERROR", "Failed to get player coordinates for PTFX.")
@@ -1275,7 +1275,7 @@ end
 local function toggle_ptfx(asset_name, effect_name, scale, toggle, player_idx)
   if toggle then
       local ptfx_task = function()
-          if not natives.network_networkIsPlayerConnected(player_idx) then
+          if not native.network.network_is_player_connected(player_idx) then
               ptfx_tasks[effect_name] = nil
               return
           end
@@ -1324,24 +1324,24 @@ end)
 local function bug_vehicle(player_idx)
     local player_ped = player.getPed(player_idx)
 
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
 
-        if natives.vehicle_areAnyVehicleSeatsFree(vehicle) then
+        if native.vehicle.are_any_vehicle_seats_free(vehicle) then
             local available_seats = {}
             for i = -1, 4 do
-                if natives.vehicle_isVehicleSeatFree(vehicle, i) then
+                if native.vehicle.is_vehicle_seat_free(vehicle, i) then
                     table.insert(available_seats, i)
                 end
             end
 
             if #available_seats > 0 then
                 local random_seat_index = available_seats[math.random(1, #available_seats)]
-                local x, y, z = natives.entity_getEntityCoords(player_ped, false, false)
+                local x, y, z = native.entity.get_entity_coords(player_ped, false, false)
                 local local_player = player.getLocalPed()
 
-                natives.ped_setPedIntoVehicle(local_player, vehicle, random_seat_index)
-                natives.vehicle_setVehicleExclusiveDriver(vehicle, local_player, 1)
+                native.ped.set_ped_into_vehicle(local_player, vehicle, random_seat_index)
+                native.vehicle.set_vehicle_exclusive_driver(vehicle, local_player, 1)
             else
                 log.error("ERROR: No free seats available in the vehicle.")
                 toast.show("ERROR", "No free seats available in the vehicle.")
@@ -1358,14 +1358,14 @@ end
 
 local function remove_vehicle_godmode(player_idx)
   local player_ped = player.getPed(player_idx)
-  if natives.ped_isPedInAnyVehicle(player_ped, false) then
-      local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+  if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+      local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
       if utility.requestControlOfEntity(vehicle, 50) then
-          natives.vehicle_setVehicleCanBreak(vehicle, true)
-          natives.entity_setEntityInvincible(vehicle, false)
-          natives.entity_setEntityCanBeDamaged(vehicle, true)
-          natives.entity_setEntityProofs(vehicle, 0, false)
-          natives.vehicle_explodeVehicle(vehicle, true, true, 0, 0)
+          native.vehicle.set_vehicle_can_break(vehicle, true)
+          native.entity.set_entity_invincible(vehicle, false)
+          native.entity.set_entity_can_be_damaged(vehicle, true)
+          native.entity.set_entity_proofs(vehicle, 0, false)
+          native.vehicle.explode_vehicle(vehicle, true, true, 0, 0)
       else
           log.error("ERROR: Failed to gain control of the vehicle.")
           toast.show("ERROR", "Failed to gain control of the vehicle.")
@@ -1380,12 +1380,12 @@ local function remove_player_godmode(player_idx)
     local player_ped = player.getPed(player_idx)
     local x, y, z = player.getCoords(player_idx)
     if utility.requestControlOfEntity(player_ped, 50) then -- Ive been told this doesnt work but the code runs so it must work right? idek anymore �\_(?)_/�
-        natives.entity_setEntityCanBeDamaged(player_ped, true)
-        natives.entity_setEntityInvincible(player_ped, false)
-        natives.entity_setEntityCanBeDamaged(player_ped, true)
-        natives.entity_setEntityProofs(player_ped, 0, false)
-        natives.ped_applyDamageToPed(player_ped, 1000, 0, 0, 0)
-        natives.fire_addExplosion(x, y, z, 27, 10000.0, false, true, 0.0)
+        native.entity.set_entity_can_be_damaged(player_ped, true)
+        native.entity.set_entity_invincible(player_ped, false)
+        native.entity.set_entity_can_be_damaged(player_ped, true)
+        native.entity.set_entity_proofs(player_ped, 0, false)
+        native.ped.apply_damage_to_ped(player_ped, 1000, 0, 0, 0)
+        native.fire.add_explosion(x, y, z, 27, 10000.0, false, true, 0.0)
     else
         log.error("ERROR: Failed to gain control of the player.")
         toast.show("ERROR", "Failed to gain control of the player.")
@@ -1395,32 +1395,32 @@ end
 local function teleport_player(player_idx)
   toast.show("Status", "Running...")
   local player_ped = player.getPed(player_idx)
-  if not natives.ped_isPedOnMount(player_ped) and 
-     not natives.ped_isPedInAnyVehicle(player_ped, false) and 
-     not natives.player_isPlayerRidingTrain(player_idx) then
+  if not native.ped.is_ped_on_mount(player_ped) and 
+     not native.ped.is_ped_in_any_vehicle(player_ped, false) and 
+     not native.player.is_player_riding_train(player_idx) then
 
-      if natives.task_isPedStill(player_ped) then
+      if native.task.is_ped_still(player_ped) then
           thread.sleep(800)
-          if natives.task_isPedStill(player_ped) then
+          if native.task.is_ped_still(player_ped) then
               local local_x, local_y, local_z = player.getLocalPedCoords()
               local x, y, z = player.getCoords(player_idx)
               local vehicle = spawner.spawnVehicle(0xC2D200FE, x, y, z - 1.1, false, true)
 
               if vehicle then
-                  if not natives.network_networkHasControlOfEntity(vehicle) then
+                  if not native.network.network_has_control_of_entity(vehicle) then
                       utility.requestControlOfEntity(vehicle, 50)
                   end
-                  natives.entity_setEntityHeading(vehicle, natives.entity_getEntityHeading(player_ped))
-                  natives.entity_setEntityCollision(vehicle, true, true)
-                  natives.entity_setEntityDynamic(vehicle, true)
-                  local target_pitch, target_roll, target_yaw = natives.entity_getEntityRotation(player_ped, 2)
-                  natives.entity_setEntityRotation(vehicle, target_pitch, target_roll, target_yaw, 2, true)
+                  native.entity.set_entity_heading(vehicle, native.entity.get_entity_heading(player_ped))
+                  native.entity.set_entity_collision(vehicle, true, true)
+                  native.entity.set_entity_dynamic(vehicle, true)
+                  local target_pitch, target_roll, target_yaw = native.entity.get_entity_rotation(player_ped, 2)
+                  native.entity.set_entity_rotation(vehicle, target_pitch, target_roll, target_yaw, 2, true)
                   thread.sleep(1000)
                   sync.addEntitySyncLimit(vehicle, player_ped)
-                  natives.entity_setEntityCoords(vehicle, local_x, local_y, local_z - 1.1, false, true, true, false)
+                  native.entity.set_entity_coords(vehicle, local_x, local_y, local_z - 1.1, false, true, true, false)
                   thread.sleep(600)
                   toast.show("Status", "Finished.")
-                  if natives.network_networkHasControlOfEntity(vehicle) then
+                  if native.network.network_has_control_of_entity(vehicle) then
                       thread.sleep(1000)
                       spawner.deleteVehicle(vehicle)
                   else
@@ -1450,10 +1450,10 @@ local function teleport_vehicle(player_idx)
     local local_x, local_y, local_z = player.getLocalPedCoords()
     local player_ped = player.getPed(player_idx)
 
-    if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
+    if native.ped.is_ped_in_any_vehicle(player_ped, false) then
+        local vehicle = native.ped.get_vehicle_ped_is_in(player_ped, false)
         if vehicle and utility.requestControlOfEntity(vehicle, 50) then
-            natives.entity_setEntityCoords(vehicle, local_x, local_y, local_z, false, false, false, true)
+            native.entity.set_entity_coords(vehicle, local_x, local_y, local_z, false, false, false, true)
         else
             log.error("ERROR: Failed to get control of the vehicle.")
             toast.show("ERROR: Failed to get control of the vehicle.")
@@ -1468,42 +1468,42 @@ end
 local target_ped = nil
 
 function spawn_entity(pos_x, pos_y, pos_z)
-    local model_hash = natives.misc_getHashKey('breach_cannon')
+    local model_hash = native.misc.get_hash_key('breach_cannon')
     local vehicle_entity = spawner.spawnVehicle(model_hash, pos_x, pos_y, pos_z + 5, false, true)
-    natives.entity_setEntityVisible(vehicle_entity, false)
-    natives.entity_setEntityCollision(vehicle_entity, false, false, false)
-    natives.entity_freezeEntityPosition(vehicle_entity, true)
+    native.entity.set_entity_visible(vehicle_entity, false)
+    native.entity.set_entity_collision(vehicle_entity, false, false, false)
+    native.entity.freeze_entity_position(vehicle_entity, true)
     return vehicle_entity
 end
 
 function attach_entity_to_entity(entity, entity2, pos_x, pos_y, pos_z)
-    natives.ped_setPedIntoVehicle(player.getLocalPed(), entity, -1)
-    natives.entity_attachEntityToEntity(entity, entity2, 550, pos_x, pos_y, pos_z, 0, 0, 0, false, false, false, false, 0, false, true, true)
+    native.ped.set_ped_into_vehicle(player.getLocalPed(), entity, -1)
+    native.entity.attach_entity_to_entity(entity, entity2, 550, pos_x, pos_y, pos_z, 0, 0, 0, false, false, false, false, 0, false, true, true)
 end
 
 function detach_entity(entity)
-    natives.entity_detachEntity(entity, true, false)
+    native.entity.detach_entity(entity, true, false)
     log.info("Detached")
 end
 
 function cleanup_entity(local_ped, entity, pos_x, pos_y, pos_z)
-    natives.entity_freezeEntityPosition(entity, false)
-    natives.entity_setEntityCoords(local_ped, pos_x, pos_y, pos_z, false, false, false, false)
-    natives.entity_freezeEntityPosition(local_ped, false)
-    natives.entity_setEntityVisible(local_ped, true)
+    native.entity.freeze_entity_position(entity, false)
+    native.entity.set_entity_coords(local_ped, pos_x, pos_y, pos_z, false, false, false, false)
+    native.entity.freeze_entity_position(local_ped, false)
+    native.entity.set_entity_visible(local_ped, true)
     spawner.deleteVehicle(entity)
     log.info("Finished")
 end
 
 -- Credit goes to jamison for finding this.
 local function awning_crash(player_idx)
-    local target_ped = natives.player_getPlayerPed(player_idx)
+    local target_ped = native.player.get_player_ped(player_idx)
     local target_x, target_y, target_z = player.getCoords(player_idx)
     local focus_object_z = target_z + 10000
     local focus_object = spawner.spawnObject(0x0FD92BD2, target_x, target_y, focus_object_z)
-    natives.streaming_setFocusEntity(focus_object)
+    native.streaming.set_focus_entity(focus_object)
     
-    local awning_object = spawner.spawnObject(natives.misc_getHashKey("s_chuckwagonawning01b"), target_x, target_y, target_z)
+    local awning_object = spawner.spawnObject(native.misc.get_hash_key("s_chuckwagonawning01b"), target_x, target_y, target_z)
     log.info('Awning Crash Sent.')
     thread.sleep(500)
     spawner.deleteObject(awning_object)
@@ -1530,13 +1530,13 @@ local function object_lag(player_idx)
 
     log.info("Lag Sent")
     for i = 1, max_objects do
-        local object = natives.object_createObject(object_hash, target_x, target_y, target_z - 14, true, false, true, false, false)
+        local object = native.object.create_object(object_hash, target_x, target_y, target_z - 14, true, false, true, false, false)
         table.insert(spawned_objects, object)
 
         if i % spawn_delay == 0 then
             thread.sleep(0)
         else
-            natives.entity_setEntityVelocity(object, 0, 0, 1)
+            native.entity.set_entity_velocity(object, 0, 0, 1)
         end
     end
 end
@@ -1573,14 +1573,14 @@ end)
 menu.addDivider(exploits_id, 'Crashes')
 
 menu.addButton(exploits_id, 'Render Crash ~e~ [Large AOE]', '', function(player_idx)
-    local target_ped = natives.player_getPlayerPed(player_idx)
-    local player_pos_x, player_pos_y, player_pos_z = natives.entity_getEntityCoords(target_ped, true, true)
+    local target_ped = native.player.get_player_ped(player_idx)
+    local player_pos_x, player_pos_y, player_pos_z = native.entity.get_entity_coords(target_ped, true, true)
     local self_pos_x, self_pos_y, self_pos_z = player.getLocalPedCoords()
     
-    if target_ped ~= 0 and natives.entity_doesEntityExist(target_ped) and not natives.ped_isPedDeadOrDying(target_ped, true) then
+    if target_ped ~= 0 and native.entity.does_entity_exist(target_ped) and not native.ped.is_ped_dead_or_dying(target_ped, true) then
         local entity = spawn_entity(player_pos_x, player_pos_y, player_pos_z)
         
-        if entity ~= 0 and natives.entity_doesEntityExist(entity) then
+        if entity ~= 0 and native.entity.does_entity_exist(entity) then
             attach_entity_to_entity(entity, target_ped, player_pos_x, player_pos_y, player_pos_z)
             thread.sleep(1500)
             detach_entity(entity)
@@ -1590,7 +1590,7 @@ menu.addButton(exploits_id, 'Render Crash ~e~ [Large AOE]', '', function(player_
             log.info("Failed to spawn entity.")
         end
     else
-        log.info("Invalid target or " .. natives.player_getPlayerName(player_idx) .. " is dead.")
+        log.info("Invalid target or " .. native.player.get_player_name(player_idx) .. " is dead.")
     end
     target_ped = nil
 end)
@@ -1609,8 +1609,8 @@ end)
 local sound_tick_function = nil
 local function play_sound(sound_id, sound_set)
     player.forEach(function(p)
-        if p.ped and natives.entity_doesEntityExist(p.ped) then
-            natives.audio_playSoundFromEntity(sound_id, p.ped, sound_set, true, 0, 0)
+        if p.ped and native.entity.does_entity_exist(p.ped) then
+            native.audio.play_sound_from_entity(sound_id, p.ped, sound_set, true, 0, 0)
         end
     end)
 end
@@ -1634,7 +1634,7 @@ local function bird_crash()
     utility.changePlayerModel(0x6A640A7B)
     thread.sleep(200)
     local local_player = player.getLocalPed()
-    natives.task_taskFlyToCoord(local_player, 0, 0, 0, 0, 0, 0)
+    native.task.task_fly_to_coord(local_player, 0, 0, 0, 0, 0, 0)
     thread.sleep(1800)
     utility.changePlayerModel(0xF5C1611E)
 end
@@ -1714,7 +1714,7 @@ local function check_afk_players()
             local last_pos = last_positions[player_record.id]
 
             if last_pos and last_pos.x == current_x and last_pos.y == current_y and last_pos.z == current_z then
-                if player_ped and natives.task_isPedStill(player_ped) then
+                if player_ped and native.task.is_ped_still(player_ped) then
                     local afk_duration = time.milliseconds() - afk_start_time[player_record.id]
                     local formatted_time = format_time(afk_duration)
                     log.info('<red>Player "' .. player_record.name .. '" has been AFK for ' .. formatted_time)
@@ -1914,7 +1914,7 @@ local marker_coords = nil
 
 local function draw_marker()
     if marker_coords then
-        natives.graphics_drawMarker(0x94FDAE17, marker_coords.x, marker_coords.y, marker_coords.z - 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.3, 5.0, 173, 216, 230, 100, true, false, 0, true, '', '', false)
+        native.graphics.draw_marker(0x94FDAE17, marker_coords.x, marker_coords.y, marker_coords.z - 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 0.3, 5.0, 173, 216, 230, 100, true, false, 0, true, '', '', false)
     end
 end
 
@@ -1924,8 +1924,8 @@ local function area_scan()
         if not bot_active then return false end
         pools.getObjectsInRadius(400.0, function(entity_handle, entity_model)
             if not bot_active then return end
-            if entity_model == collectible_hash and natives.entity_doesEntityExist(entity_handle) and natives.entity_isEntityVisible(entity_handle) then
-                local x, y, z = natives.entity_getEntityCoords(entity_handle, false, true)
+            if entity_model == collectible_hash and native.entity.does_entity_exist(entity_handle) and native.entity.is_entity_visible(entity_handle) then
+                local x, y, z = native.entity.get_entity_coords(entity_handle, false, true)
                 utility.teleportToCoords(x, y, z)
                 marker_coords = {x = x, y = y, z = z}
                 log.info("Collectible found at coordinates: (" .. x .. ", " .. y .. ", " .. z .. ")")
@@ -1934,8 +1934,8 @@ local function area_scan()
 
                 if auto_collect then
                     local local_ped = player.getLocalPed()
-                    natives.task_clearPedTasks(local_ped, true, true)
-                    natives.task_taskPickupCarriableEntity(local_ped, entity_handle)
+                    native.task.clear_ped_tasks(local_ped, true, true)
+                    native.task.task_pickup_carriable_entity(local_ped, entity_handle)
                 end
 
                 found = true
@@ -1996,7 +1996,7 @@ menu.addToggleButton(misc_id, 'Collectible Scan', '', false, function(toggle)
         end
     else
         marker_coords = nil
-        natives.task_clearPedTasks(player.getLocalPed(), true, true)
+        native.task.clear_ped_tasks(player.getLocalPed(), true, true)
     end
 end)
 
@@ -2008,7 +2008,7 @@ menu.addToggleButton(misc_id, 'Collectible Bot', '~e~WARNING: ~q~Once toggled it
         -- TODO: Implement collectible bot with proper Exodus pattern
     else
         marker_coords = nil
-        natives.task_clearPedTasks(player.getLocalPed(), true, true)
+        native.task.clear_ped_tasks(player.getLocalPed(), true, true)
         log.info("Bot disabled.")
     end
 end)
