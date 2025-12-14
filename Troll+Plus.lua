@@ -1,9 +1,34 @@
-system.setScriptName('~t4~Troll+Plus')
+-- ============================================================================
+-- Troll+Plus Exodus API Conversion
+-- Version 1.1
+--
+-- IMPORTANT CONVERSION NOTES:
+-- This script has been partially converted to Exodus API.
+-- The following changes were made:
+--
+-- 1. system.* -> thread.* and script.* where applicable
+-- 2. logger.* -> log.*
+-- 3. notifications.* -> toast.*
+-- 4. math.getRandomFloat/Int/pi() -> standard Lua math functions
+-- 5. math.getDistance -> manual calculation
+--
+-- UNSUPPORTED/NEEDS MANUAL REVIEW:
+-- - system.registerTick/unregisterTick: Marked as unsupported, need manual conversion
+-- - spawner.*: May need to use game.* or native functions
+-- - player.* methods: API may differ, verify syntax
+-- - utility.*: May need different approach in Exodus
+-- - menu.* methods: Verify exact Exodus menu API syntax
+-- - sync.*, pools.*: May not have direct equivalents
+--
+-- See https://docs.exodusmenu.com/scripting/ for Exodus API reference
+-- ============================================================================
+
+-- UNSUPPORTED: setScriptName
 
 -- Initialization
-system.registerConstructor(function()
-    logger.logCustom('<#FFFF00>[<b>Troll+Plus: <#FFFFFF>Loaded!</#FFFF00></b><#FFFF00>]')
-    notifications.alertInfo("Have fun trolling :)", "Version 1.1")
+script.register_looped('trollplus_init', function(script_)
+    log.info('<#FFFF00>[<b>Troll+Plus: <#FFFFFF>Loaded!</#FFFF00></b><#FFFF00>]')
+    toast.show("Have fun trolling :)", "Version 1.1")
 end)
 
 -- Menu
@@ -48,12 +73,12 @@ local function ram_player(player_idx)
     local predicted_y = target_y + target_velocity_y * prediction_time
     local predicted_z = target_z + target_velocity_z * prediction_time
 
-    local distance = math.getRandomFloat(20.0, 24.0)
-    local angle = math.getRandomFloat(0, 2 * math.pi())
+    local distance = (math.random() * (24.0 - (20.0)) + (20.0))
+    local angle = (math.random() * (2 * math.pi - (0)) + (0))
     local spawn_x = predicted_x + distance * math.cos(angle)
     local spawn_y = predicted_y + distance * math.sin(angle)
 
-    local vehicle_model = vehicle_models[math.getRandomInt(1, #vehicle_models)]
+    local vehicle_model = vehicle_models[math.random(1, #vehicle_models)]
     local vehicle = spawner.spawnVehicle(vehicle_model, spawn_x, spawn_y, predicted_z, false, true)
 
     if vehicle then
@@ -61,11 +86,11 @@ local function ram_player(player_idx)
         local dy = predicted_y - spawn_y
         local heading = natives.misc_getHeadingFromVector2d(dx, dy)
         natives.entity_setEntityHeading(vehicle, heading)
-        system.yield(150)
+        thread.sleep(150)
         natives.vehicle_setVehicleForwardSpeed(vehicle, 30.0)
     else
-        logger.logError("ERROR: Failed to spawn vehicle.")
-        notifications.alertDanger("ERROR:", "Failed to spawn vehicle.")
+        log.error("ERROR: Failed to spawn vehicle.")
+        toast.show("ERROR:", "Failed to spawn vehicle.")
     end
 end
 
@@ -73,26 +98,26 @@ local function kidnap_player(player_idx)
     local player_ped = player.getPed(player_idx)
 
     if natives.ped_isPedOnMount(player_ped) then
-        logger.logError("ERROR: Player is on a mount.")
-        notifications.alertDanger("ERROR", "Player is on a mount.")
+        log.error("ERROR: Player is on a mount.")
+        toast.show("ERROR", "Player is on a mount.")
         return
     end
 
     if natives.ped_isPedInAnyVehicle(player_ped, false) then
-        logger.logError("ERROR: Player is in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is in a vehicle.")
+        log.error("ERROR: Player is in a vehicle.")
+        toast.show("ERROR", "Player is in a vehicle.")
         return
     end
 
     if natives.player_isPlayerRidingTrain(player_idx) then
-        logger.logError("ERROR: Player is on a train.")
-        notifications.alertDanger("ERROR", "Player is on a train.")
+        log.error("ERROR: Player is on a train.")
+        toast.show("ERROR", "Player is on a train.")
         return
     end
 
     if natives.task_isPedStill(player_ped) then
-        notifications.alertInfo("Status", "Running...")
-        system.yield(800)
+        toast.show("Status", "Running...")
+        thread.sleep(800)
 
         if natives.task_isPedStill(player_ped) then
             local local_ped = player.getLocalPed()
@@ -106,18 +131,18 @@ local function kidnap_player(player_idx)
                 local target_pitch, target_roll, target_yaw = natives.entity_getEntityRotation(player_ped, 2)
                 natives.entity_setEntityRotation(kidnap_vehicle, target_pitch, target_roll, target_yaw, 2, true)
                 natives.ped_setPedIntoVehicle(local_ped, kidnap_vehicle, -1)
-                notifications.alertInfo("Status", "Finished.")
+                toast.show("Status", "Finished.")
             else
-                logger.logError("ERROR: Failed to kidnap player.")
-                notifications.alertDanger("ERROR", "Failed to kidnap player.")
+                log.error("ERROR: Failed to kidnap player.")
+                toast.show("ERROR", "Failed to kidnap player.")
             end
         else
-            logger.logError("ERROR: Player moved.")
-            notifications.alertDanger("ERROR", "Player moved.")
+            log.error("ERROR: Player moved.")
+            toast.show("ERROR", "Player moved.")
         end
     else
-        logger.logError("ERROR: Player is not standing still.")
-        notifications.alertDanger("ERROR", "Player is not standing still.")
+        log.error("ERROR: Player is not standing still.")
+        toast.show("ERROR", "Player is not standing still.")
     end
 end
 
@@ -130,8 +155,8 @@ local function set_player_on_fire(player_idx)
       natives.entity_setEntityAlpha(fire_object, 0, false)
       natives.entity_attachEntityToEntity(fire_object, player_ped, 0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, true, true, true, true, 0, true, true, true)
   else
-      logger.logError("ERROR: Failed to spawn fire object.")
-      notifications.alertDanger("ERROR", "Failed to spawn fire object.")
+      log.error("ERROR: Failed to spawn fire object.")
+      toast.show("ERROR", "Failed to spawn fire object.")
   end
 end
 
@@ -157,7 +182,7 @@ local function spawn_attacker(player_idx)
   local player_ped = player.getPed(player_idx)
   local x, y, z = player.getCoords(player_idx)
   local model_list = spawn_as_animal and random_animal_models or random_ped_models
-  local random_index = math.getRandomInt(1, #model_list)
+  local random_index = math.random(1, #model_list)
   local random_model_hash = model_list[random_index]
 
   local attacker_ped
@@ -185,8 +210,8 @@ local function spawn_attacker(player_idx)
       natives.ped_setPedCombatRange(attacker_ped, 4)
       natives.ped_setPedCombatMovement(attacker_ped, 3)
   else
-      logger.logError("ERROR: Failed to spawn attacker.")
-      notifications.alertDanger("ERROR", "Failed to spawn attacker.")
+      log.error("ERROR: Failed to spawn attacker.")
+      toast.show("ERROR", "Failed to spawn attacker.")
   end
 end
 
@@ -245,8 +270,8 @@ menu.addButton(trolling_id, 'Remove Attackers', '', function()
       if utility.requestControlOfEntity(attacker, 50) then
           spawner.deletePed(attacker)
       else
-          logger.logError("ERROR: Failed to gain control of attacker for deletion.")
-          notifications.alertDanger("ERROR", "Failed to gain control of attacker for deletion.")
+          log.error("ERROR: Failed to gain control of attacker for deletion.")
+          toast.show("ERROR", "Failed to gain control of attacker for deletion.")
       end
   end
   spawned_attackers = {}
@@ -260,10 +285,10 @@ local function attach_object_to_player(player_idx, model_hash, bone_index, xOffs
       if object then
           natives.entity_attachEntityToEntity(object, player_ped, bone_index, xOffset, yOffset, zOffset, xRot, yRot, zRot, true, true, true, true, 0, true, true, true)
       else
-          logger.logError("ERROR: Failed to spawn object for attachment.")
+          log.error("ERROR: Failed to spawn object for attachment.")
       end
   else
-      logger.logError("ERROR: Invalid player index for attachment.")
+      log.error("ERROR: Invalid player index for attachment.")
   end
 end
 
@@ -350,7 +375,7 @@ local function manage_cage_entities(player_idx, entities)
 end
 
 local function spawn_cage_entities(center_x, center_y, center_z, entities, radius, model_hash, entity_type)
-  local angle_step = math.pi() * 2 / 8
+  local angle_step = math.pi * 2 / 8
   for i = 1, 8 do
       local angle = angle_step * i
       local x = center_x + radius * math.cos(angle)
@@ -365,7 +390,7 @@ local function spawn_cage_entities(center_x, center_y, center_z, entities, radiu
           entity = spawner.spawnObject(model_hash, x, y, z - 1, true)
       end
       if not entity then
-          logger.logError("ERROR: Failed to spawn " .. entity_type .. " entity.")
+          log.error("ERROR: Failed to spawn " .. entity_type .. " entity.")
       else
           table.insert(entities, entity)
       end
@@ -437,7 +462,7 @@ local function check_cage_escape(player_idx, cage_entities)
   local player_ped = player.getPed(player_idx)
   local px, py, pz = player.getCoords(player_idx)
   local cage_center_x, cage_center_y, cage_center_z = get_cage_center(cage_entities)
-  local dist = math.getDistance(px, py, pz, cage_center_x, cage_center_y, cage_center_z)
+  local dist = math.sqrt(((cage_center_x)-(px))^2 + ((cage_center_y)-(py))^2 + ((cage_center_z)-(pz))^2)
 
   if dist > 1.5 then
       return true
@@ -453,17 +478,17 @@ local function setup_cage_toggle(spawn_func)
             cage_tasks[player_idx].task = function()
                 if check_cage_escape(player_idx, cage_tasks[player_idx].entities) then
                     remove_cage(cage_tasks[player_idx].entities)
-                    system.yield(500)
+                    thread.sleep(500)
                     cage_tasks[player_idx].entities = spawn_func(player_idx)
                 end
-                system.yield(50)
+                thread.sleep(50)
             end
-            system.registerTick(cage_tasks[player_idx].task)
+            -- UNSUPPORTED: registerTick(cage_tasks[player_idx].task) -- Use script.register_looped with proper structure
             active_tick_functions["Cage_" .. player_idx] = cage_tasks[player_idx].task
         else
             local cage_data = cage_tasks[player_idx]
             if cage_data then
-                system.unregisterTick(cage_data.task)
+                -- UNSUPPORTED: unregisterTick(cage_data.task) -- Manual script management needed
                 active_tick_functions["Cage_" .. player_idx] = nil
                 remove_cage(cage_data.entities)
                 cage_tasks[player_idx] = nil
@@ -541,12 +566,12 @@ local function fix_vehicle(player_idx)
         if utility.requestControlOfEntity(vehicle, 50) then
             natives.vehicle_setVehicleFixed(vehicle)
         else
-            logger.logError("ERROR: Failed to gain control of vehicle.")
-            notifications.alertDanger("ERROR", "Failed to gain control of vehicle.")
+            log.error("ERROR: Failed to gain control of vehicle.")
+            toast.show("ERROR", "Failed to gain control of vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
@@ -557,12 +582,12 @@ local function godmode_vehicle(player_idx)
         if utility.requestControlOfEntity(vehicle, 50) then
             natives.entity_setEntityInvincible(vehicle, true)
         else
-            logger.logError("ERROR: Failed to gain control of vehicle.")
-            notifications.alertDanger("ERROR", "Failed to gain control of vehicle.")
+            log.error("ERROR: Failed to gain control of vehicle.")
+            toast.show("ERROR", "Failed to gain control of vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
@@ -573,12 +598,12 @@ local function remove_godmode_vehicle(player_idx)
         if utility.requestControlOfEntity(vehicle, 50) then
             natives.entity_setEntityInvincible(vehicle, false)
         else
-            logger.logError("ERROR: Failed to gain control of vehicle.")
-            notifications.alertDanger("ERROR", "Failed to gain control of vehicle.")
+            log.error("ERROR: Failed to gain control of vehicle.")
+            toast.show("ERROR", "Failed to gain control of vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
@@ -589,12 +614,12 @@ local function invisible_vehicle(player_idx)
         if utility.requestControlOfEntity(vehicle, 50) then
             natives.entity_setEntityAlpha(vehicle, 0, false)
         else
-            logger.logError("ERROR: Failed to gain control of vehicle.")
-            notifications.alertDanger("ERROR", "Failed to gain control of vehicle.")
+            log.error("ERROR: Failed to gain control of vehicle.")
+            toast.show("ERROR", "Failed to gain control of vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
@@ -605,12 +630,12 @@ local function remove_invisibility(player_idx)
         if utility.requestControlOfEntity(vehicle, 50) then
             natives.entity_resetEntityAlpha(vehicle)
         else
-            logger.logError("ERROR: Failed to gain control of vehicle.")
-            notifications.alertDanger("ERROR", "Failed to gain control of vehicle.")
+            log.error("ERROR: Failed to gain control of vehicle.")
+            toast.show("ERROR", "Failed to gain control of vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
@@ -621,12 +646,12 @@ local function lock_vehicle(player_idx)
         if utility.requestControlOfEntity(vehicle, 50) then
             natives.vehicle_setVehicleDoorsLocked(vehicle, 4)
         else
-            logger.logError("ERROR: Failed to gain control of vehicle.")
-            notifications.alertDanger("ERROR", "Failed to gain control of vehicle.")
+            log.error("ERROR: Failed to gain control of vehicle.")
+            toast.show("ERROR", "Failed to gain control of vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
@@ -637,12 +662,12 @@ local function unlock_vehicle(player_idx)
         if utility.requestControlOfEntity(vehicle, 50) then
             natives.vehicle_setVehicleDoorsLocked(vehicle, 1)
         else
-            logger.logError("ERROR: Failed to gain control of vehicle.")
-            notifications.alertDanger("ERROR", "Failed to gain control of vehicle.")
+            log.error("ERROR: Failed to gain control of vehicle.")
+            toast.show("ERROR", "Failed to gain control of vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
@@ -653,12 +678,12 @@ local function stop_vehicle(player_idx)
         if utility.requestControlOfEntity(vehicle, 50) then
             natives.entity_setEntityVelocity(vehicle, 0.0, 0.0, 0.0)
         else
-            logger.logError("ERROR: Failed to gain control of vehicle.")
-            notifications.alertDanger("ERROR", "Failed to gain control of vehicle.")
+            log.error("ERROR: Failed to gain control of vehicle.")
+            toast.show("ERROR", "Failed to gain control of vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
@@ -670,12 +695,12 @@ local function boost_vehicle(player_idx, speed)
         if utility.requestControlOfEntity(vehicle, 50) then
             natives.vehicle_setVehicleForwardSpeed(vehicle, speed or vehicle_boost_speed)
         else
-            logger.logError("ERROR: Failed to gain control of vehicle.")
-            notifications.alertDanger("ERROR", "Failed to gain control of vehicle.")
+            log.error("ERROR: Failed to gain control of vehicle.")
+            toast.show("ERROR", "Failed to gain control of vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
@@ -686,12 +711,12 @@ local function launch_vehicle(player_idx)
         if utility.requestControlOfEntity(vehicle, 50) then
             natives.entity_setEntityVelocity(vehicle, 0.0, 0.0, vehicle_boost_speed)
         else
-            logger.logError("ERROR: Failed to gain control of vehicle.")
-            notifications.alertDanger("ERROR", "Failed to gain control of vehicle.")
+            log.error("ERROR: Failed to gain control of vehicle.")
+            toast.show("ERROR", "Failed to gain control of vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
@@ -707,32 +732,32 @@ local function teleport_into_vehicle(player_idx)
                     return
                 end
             end
-            logger.logError("ERROR: No free seats available in the vehicle.")
-            notifications.alertDanger("ERROR: No free seats available in the vehicle.")
+            log.error("ERROR: No free seats available in the vehicle.")
+            toast.show("ERROR: No free seats available in the vehicle.")
         else
-            logger.logError("ERROR: Vehicle seats are not free.")
-            notifications.alertDanger("ERROR: Vehicle seats are not free.")
+            log.error("ERROR: Vehicle seats are not free.")
+            toast.show("ERROR: Vehicle seats are not free.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
 local function break_off_wheel(player_idx)
-    local wheelIndex = math.getRandomInt(0, 4)
+    local wheelIndex = math.random(0, 4)
     local player_ped = player.getPed(player_idx)
     if natives.ped_isPedInAnyVehicle(player_ped, false) then
         local vehicle = natives.ped_getVehiclePedIsIn(player_ped, false)
         if utility.requestControlOfEntity(vehicle, 50) then
             natives.vehicle_breakOffVehicleWheel(vehicle, wheelIndex)
         else
-            logger.logError("ERROR: Failed to gain control of vehicle.")
-            notifications.alertDanger("ERROR", "Failed to gain control of vehicle.")
+            log.error("ERROR: Failed to gain control of vehicle.")
+            toast.show("ERROR", "Failed to gain control of vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
@@ -743,12 +768,12 @@ local function explode_vehicle(player_idx)
         if utility.requestControlOfEntity(vehicle, 50) then
             natives.vehicle_explodeVehicle(vehicle, true, true, 0, 0)
         else
-            logger.logError("ERROR: Failed to gain control of vehicle.")
-            notifications.alertDanger("ERROR", "Failed to gain control of vehicle.")
+            log.error("ERROR: Failed to gain control of vehicle.")
+            toast.show("ERROR", "Failed to gain control of vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
@@ -759,12 +784,12 @@ local function delete_vehicle(player_idx)
         if utility.requestControlOfEntity(vehicle, 50) then
             spawner.deleteVehicle(vehicle)
         else
-            logger.logError("ERROR: Failed to gain control of vehicle.")
-            notifications.alertDanger("ERROR", "Failed to gain control of vehicle.")
+            log.error("ERROR: Failed to gain control of vehicle.")
+            toast.show("ERROR", "Failed to gain control of vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
@@ -776,12 +801,12 @@ local function rotate_vehicle(player_idx, degrees)
             local pitch, roll, yaw = natives.entity_getEntityRotation(vehicle, 2)
             natives.entity_setEntityRotation(vehicle, pitch, roll, yaw + degrees, 2, true)
         else
-            logger.logError("ERROR: Failed to gain control of vehicle.")
-            notifications.alertDanger("ERROR", "Failed to gain control of vehicle.")
+            log.error("ERROR: Failed to gain control of vehicle.")
+            toast.show("ERROR", "Failed to gain control of vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
@@ -862,12 +887,12 @@ local function buck_off_player(player_idx)
           utility.requestControlOfEntity(horse, 50)
           natives.task_taskHorseAction(horse, 2, horse, 0)
       else
-          logger.logError("ERROR: Player is on a mount, but unable to get the horse entity.")
-          notifications.alertDanger("ERROR", "Player is on a mount, but unable to get the horse entity.")
+          log.error("ERROR: Player is on a mount, but unable to get the horse entity.")
+          toast.show("ERROR", "Player is on a mount, but unable to get the horse entity.")
       end
   else
-      logger.logError("ERROR: Player is not on a horse.")
-      notifications.alertDanger("ERROR", "Player is not on a horse.")
+      log.error("ERROR: Player is not on a horse.")
+      toast.show("ERROR", "Player is not on a horse.")
   end
 end
 
@@ -878,7 +903,7 @@ local function buck_off_loop(player_idx)
         if natives.ped_isPedOnMount(player_ped) then
             buck_off_player(player_idx)
         end
-        system.yield(2000)
+        thread.sleep(2000)
     end
 end
 
@@ -897,12 +922,12 @@ local function come_to_me(player_idx)
       if utility.requestControlOfEntity(horse, 50) then
         natives.task_taskGoToEntity(horse, local_ped, -1, 1.0, 5.0, 0.0, 0)
       else
-          logger.logError("ERROR: Failed to gain control of horse.")
-          notifications.alertDanger("ERROR", "Failed to gain control of horse.")
+          log.error("ERROR: Failed to gain control of horse.")
+          toast.show("ERROR", "Failed to gain control of horse.")
       end
   else
-      logger.logError("ERROR: Player is not on a horse or no last horse found.")
-      notifications.alertDanger("ERROR", "Player is not on a horse or no last horse found.")
+      log.error("ERROR: Player is not on a horse or no last horse found.")
+      toast.show("ERROR", "Player is not on a horse or no last horse found.")
   end
 end
 
@@ -923,38 +948,38 @@ local function steal_mount(player_idx)
     if horse and not natives.entity_isEntityDead(horse) then
         if utility.requestControlOfEntity(horse, 50) then
             if natives.ped_isPedOnMount(player_ped) then
-                notifications.alertInfo("Status", "Running...")
+                toast.show("Status", "Running...")
                 natives.task_taskHorseAction(horse, 2, horse, 0)
 
-                local start_time = system.getTickCount64()
+                local start_time = time.milliseconds()
                 local steal_mount_task = function()
-                    local current_time = system.getTickCount64()
+                    local current_time = time.milliseconds()
                     if (current_time - start_time) > 10000 then
-                        system.unregisterTick(steal_mount_task)
-                        notifications.alertDanger("ERROR", "Operation timed out.")
-                        logger.logError("ERROR: Operation timed out.")
+                        -- UNSUPPORTED: unregisterTick(steal_mount_task) -- Manual script management needed
+                        toast.show("ERROR", "Operation timed out.")
+                        log.error("ERROR: Operation timed out.")
                     elseif not natives.network_networkHasControlOfEntity(horse) then
                         utility.requestControlOfEntity(horse, 50)
                     elseif natives.ped_isMountSeatFree(horse, -1) and natives.ped_canPedBeMounted(horse) then
                         natives.ped_setMountSecurityEnabled(horse, false)
                         natives.ped_setPedOntoMount(local_ped, horse, -1, true)
-                        system.unregisterTick(steal_mount_task)
-                        notifications.alertInfo("Status", "Finished.")
+                        -- UNSUPPORTED: unregisterTick(steal_mount_task) -- Manual script management needed
+                        toast.show("Status", "Finished.")
                     end
                 end
-                system.registerTick(steal_mount_task)
+                -- UNSUPPORTED: registerTick(steal_mount_task) -- Use script.register_looped with proper structure
                 active_tick_functions["StealHorse"] = steal_mount_task
             else
                 natives.ped_setMountSecurityEnabled(horse, false)
                 natives.ped_setPedOntoMount(local_ped, horse, -1, true)
             end
         else
-            logger.logError("ERROR: Failed to gain control of horse.")
-            notifications.alertDanger("ERROR: Failed to gain control of horse.")
+            log.error("ERROR: Failed to gain control of horse.")
+            toast.show("ERROR: Failed to gain control of horse.")
         end
     else
-        logger.logError("ERROR: Player is not on a horse or no last horse found.")
-        notifications.alertDanger("ERROR: Player is not on a horse or no last horse found.")
+        log.error("ERROR: Player is not on a horse or no last horse found.")
+        toast.show("ERROR: Player is not on a horse or no last horse found.")
     end
 end
 
@@ -972,11 +997,11 @@ local function ragdoll_horse(player_idx)
       if utility.requestControlOfEntity(horse, 50) then
           natives.ped_setPedToRagdoll(horse, 1000, 1000, 0, false, false, false)
       else
-          logger.logError("ERROR: Failed to gain control of horse.")
+          log.error("ERROR: Failed to gain control of horse.")
       end
   else
-      logger.logError("ERROR: Player is not on a horse or no last horse found.")
-      notifications.alertDanger("ERROR", "Player is not on a horse or no last horse found.")
+      log.error("ERROR: Player is not on a horse or no last horse found.")
+      toast.show("ERROR", "Player is not on a horse or no last horse found.")
   end
 end
 
@@ -994,14 +1019,14 @@ local function launch_horse(player_idx)
       if utility.requestControlOfEntity(horse, 50) then
           local x, y, z = natives.entity_getEntityCoords(horse, false, false)
           natives.entity_setEntityVelocity(horse, 0.0, 0.0, 100.0)
-          logger.logInfo("INFO: Launched horse.")
+          log.info("INFO: Launched horse.")
       else
-          logger.logError("ERROR: Failed to gain control of horse.")
-          notifications.alertDanger("ERROR", "Failed to gain control of horse.")
+          log.error("ERROR: Failed to gain control of horse.")
+          toast.show("ERROR", "Failed to gain control of horse.")
       end
   else
-      logger.logError("ERROR: Player is not on a horse or no last horse found.")
-      notifications.alertDanger("ERROR", "Player is not on a horse or no last horse found.")
+      log.error("ERROR: Player is not on a horse or no last horse found.")
+      toast.show("ERROR", "Player is not on a horse or no last horse found.")
   end
 end
 
@@ -1026,12 +1051,12 @@ local function set_horse_on_fire(player_idx)
           natives.entity_setEntityAlpha(fire_object, 0, false)
           natives.entity_attachEntityToEntity(fire_object, horse, 4, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, true, true, true, true, 0, true, true, true)
       else
-          logger.logError("ERROR: Failed to spawn fire object.")
-          notifications.alertDanger("ERROR", "Failed to spawn fire object.")
+          log.error("ERROR: Failed to spawn fire object.")
+          toast.show("ERROR", "Failed to spawn fire object.")
       end
   else
-      logger.logError("ERROR: Player is not on a horse or no last horse found.")
-      notifications.alertDanger("ERROR", "Player is not on a horse or no last horse found.")
+      log.error("ERROR: Player is not on a horse or no last horse found.")
+      toast.show("ERROR", "Player is not on a horse or no last horse found.")
   end
 end
 
@@ -1049,11 +1074,11 @@ local function make_horse_bleed_out(player_idx)
       if utility.requestControlOfEntity(horse, 50) then
           natives.task_taskAnimalBleedOut(horse, 0, false, 0, 0, 0, 0)
       else
-          logger.logError("ERROR: Failed to gain control of horse.")
+          log.error("ERROR: Failed to gain control of horse.")
       end
   else
-      logger.logError("ERROR: Player is not on a horse or no last horse found.")
-      notifications.alertDanger("ERROR", "Player is not on a horse or no last horse found.")
+      log.error("ERROR: Player is not on a horse or no last horse found.")
+      toast.show("ERROR", "Player is not on a horse or no last horse found.")
   end
 end
 
@@ -1071,12 +1096,12 @@ local function kill_horse(player_idx)
       if utility.requestControlOfEntity(horse, 50) then
           natives.ped_applyDamageToPed(horse, 1000, 0, 0, 0)
       else
-          logger.logError("ERROR: Failed to gain control of horse.")
-          notifications.alertDanger("ERROR", "Failed to gain control of horse.")
+          log.error("ERROR: Failed to gain control of horse.")
+          toast.show("ERROR", "Failed to gain control of horse.")
       end
   else
-      logger.logError("ERROR: Player is not on a horse or no last horse found.")
-      notifications.alertDanger("ERROR", "Player is not on a horse or no last horse found.")
+      log.error("ERROR: Player is not on a horse or no last horse found.")
+      toast.show("ERROR", "Player is not on a horse or no last horse found.")
   end
 end
 
@@ -1087,11 +1112,11 @@ end)
 menu.addToggleButton(horse_id, 'Buck Off Player Loop', '', false, function(toggle, player_idx)
     if toggle then
         buck_off_task = function() buck_off_loop(player_idx) end
-        system.registerTick(buck_off_task)
+        -- UNSUPPORTED: registerTick(buck_off_task) -- Use script.register_looped with proper structure
         active_tick_functions["BuckOff_" .. player_idx] = buck_off_task
     else
         if buck_off_task then
-            system.unregisterTick(buck_off_task)
+            -- UNSUPPORTED: unregisterTick(buck_off_task) -- Manual script management needed
             active_tick_functions["BuckOff_" .. player_idx] = nil
             buck_off_task = nil
         end
@@ -1142,8 +1167,8 @@ local function trigger_explosion(x, y, z, blame_player_ped)
             natives.fire_addExplosion(x, y, z, explosion_type, damage_scale, is_audible, is_invisible, camera_shake)
         end
     else
-        logger.logError('ERROR: Explosion coordinates are invalid.')
-        notifications.alertDanger('ERROR', 'Explosion coordinates are invalid.')
+        log.error('ERROR: Explosion coordinates are invalid.')
+        toast.show('ERROR', 'Explosion coordinates are invalid.')
     end
 end
 
@@ -1152,8 +1177,8 @@ menu.addButton(explosions_id, 'Explode Player', '', function(player_idx)
     if x and y and z then
         trigger_explosion(x, y, z)
     else
-        logger.logError('ERROR: Failed to retrieve player coordinates.')
-        notifications.alertDanger('ERROR', 'Failed to retrieve player coordinates.')
+        log.error('ERROR: Failed to retrieve player coordinates.')
+        toast.show('ERROR', 'Failed to retrieve player coordinates.')
     end
 end)
 
@@ -1162,18 +1187,18 @@ menu.addToggleButton(explosions_id, 'Explode Player Toggle', '', false, function
     if toggle then
         explode_player_task = function()
             if not natives.network_networkIsPlayerConnected(player_idx) then
-                system.unregisterTick(explode_player_task)
+                -- UNSUPPORTED: unregisterTick(explode_player_task) -- Manual script management needed
                 explode_player_task = nil
                 return
             end
             local x, y, z = player.getCoords(player_idx)
             trigger_explosion(x, y, z)
-            system.yield(explosion_delay)
+            thread.sleep(explosion_delay)
         end
-        system.registerTick(explode_player_task)
+        -- UNSUPPORTED: registerTick(explode_player_task) -- Use script.register_looped with proper structure
         active_tick_functions["ExplodePlayer_" .. player_idx] = explode_player_task
     else
-        system.unregisterTick(explode_player_task)
+        -- UNSUPPORTED: unregisterTick(explode_player_task) -- Manual script management needed
         active_tick_functions["ExplodePlayer_" .. player_idx] = nil
         explode_player_task = nil
     end
@@ -1194,7 +1219,7 @@ menu.addToggleButton(explosions_id, 'Blame Explode Lobby Toggle', '', false, fun
     if toggle then
         explode_lobby_task = function()
             if not natives.network_networkIsPlayerConnected(player_idx) then
-                system.unregisterTick(explode_lobby_task)
+                -- UNSUPPORTED: unregisterTick(explode_lobby_task) -- Manual script management needed
                 explode_lobby_task = nil
                 return
             end
@@ -1202,12 +1227,12 @@ menu.addToggleButton(explosions_id, 'Blame Explode Lobby Toggle', '', false, fun
                 local x, y, z = player.getCoords(p.id)
                 trigger_explosion(x, y, z, selected_player_ped_to_blame)
             end)
-            system.yield(explosion_delay)
+            thread.sleep(explosion_delay)
         end
-        system.registerTick(explode_lobby_task)
+        -- UNSUPPORTED: registerTick(explode_lobby_task) -- Use script.register_looped with proper structure
         active_tick_functions["ExplodeLobby_" .. player_idx] = explode_lobby_task
     else
-        system.unregisterTick(explode_lobby_task)
+        -- UNSUPPORTED: unregisterTick(explode_lobby_task) -- Manual script management needed
         active_tick_functions["ExplodeLobby_" .. player_idx] = nil
         explode_lobby_task = nil
     end
@@ -1242,8 +1267,8 @@ local ptfx_tasks = {}
 
 local function start_ptfx(asset_name, effect_name, player_idx, scale)
   if not player_idx or player_idx < 0 then
-      logger.logError("ERROR: Invalid player index for PTFX.")
-      notifications.alertDanger("ERROR", "Invalid player index for PTFX.")
+      log.error("ERROR: Invalid player index for PTFX.")
+      toast.show("ERROR", "Invalid player index for PTFX.")
       return
   end
 
@@ -1253,8 +1278,8 @@ local function start_ptfx(asset_name, effect_name, player_idx, scale)
   if x and y and z then
       natives.graphics_startNetworkedParticleFxNonLoopedAtCoord(effect_name, x, y, z, 0.0, 0.0, 0.0, scale, false, false, false)
   else
-      logger.logError("ERROR: Failed to get player coordinates for PTFX.")
-      notifications.alertDanger("ERROR", "Failed to get player coordinates for PTFX.")
+      log.error("ERROR: Failed to get player coordinates for PTFX.")
+      toast.show("ERROR", "Failed to get player coordinates for PTFX.")
   end
 end
 
@@ -1262,20 +1287,20 @@ local function toggle_ptfx(asset_name, effect_name, scale, toggle, player_idx)
   if toggle then
       local ptfx_task = function()
           if not natives.network_networkIsPlayerConnected(player_idx) then
-              system.unregisterTick(ptfx_task)
+              -- UNSUPPORTED: unregisterTick(ptfx_task) -- Manual script management needed
               ptfx_tasks[effect_name] = nil
               return
           end
           start_ptfx(asset_name, effect_name, player_idx, scale)
-          system.yield(0)
+          thread.sleep(0)
       end
       ptfx_tasks[effect_name] = ptfx_task
-      system.registerTick(ptfx_task)
+      -- UNSUPPORTED: registerTick(ptfx_task) -- Use script.register_looped with proper structure
       active_tick_functions["PTFX_" .. effect_name .. "_" .. player_idx] = ptfx_task
   else
       local ptfx_task = ptfx_tasks[effect_name]
       if ptfx_task then
-          system.unregisterTick(ptfx_task)
+          -- UNSUPPORTED: unregisterTick(ptfx_task) -- Manual script management needed
           active_tick_functions["PTFX_" .. effect_name .. "_" .. player_idx] = nil
           ptfx_tasks[effect_name] = nil
       end
@@ -1326,23 +1351,23 @@ local function bug_vehicle(player_idx)
             end
 
             if #available_seats > 0 then
-                local random_seat_index = available_seats[math.getRandomInt(1, #available_seats)]
+                local random_seat_index = available_seats[math.random(1, #available_seats)]
                 local x, y, z = natives.entity_getEntityCoords(player_ped, false, false)
                 local local_player = player.getLocalPed()
 
                 natives.ped_setPedIntoVehicle(local_player, vehicle, random_seat_index)
                 natives.vehicle_setVehicleExclusiveDriver(vehicle, local_player, 1)
             else
-                logger.logError("ERROR: No free seats available in the vehicle.")
-                notifications.alertDanger("ERROR", "No free seats available in the vehicle.")
+                log.error("ERROR: No free seats available in the vehicle.")
+                toast.show("ERROR", "No free seats available in the vehicle.")
             end
         else
-            logger.logError("ERROR: No free seats available in the vehicle.")
-            notifications.alertDanger("ERROR", "No free seats available in the vehicle.")
+            log.error("ERROR: No free seats available in the vehicle.")
+            toast.show("ERROR", "No free seats available in the vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR", "Player is not in a vehicle.")
     end
 end
 
@@ -1357,12 +1382,12 @@ local function remove_vehicle_godmode(player_idx)
           natives.entity_setEntityProofs(vehicle, 0, false)
           natives.vehicle_explodeVehicle(vehicle, true, true, 0, 0)
       else
-          logger.logError("ERROR: Failed to gain control of the vehicle.")
-          notifications.alertDanger("ERROR", "Failed to gain control of the vehicle.")
+          log.error("ERROR: Failed to gain control of the vehicle.")
+          toast.show("ERROR", "Failed to gain control of the vehicle.")
       end
   else
-      logger.logError("ERROR: Player is not in a vehicle.")
-      notifications.alertDanger("ERROR", "Player is not in a vehicle.")
+      log.error("ERROR: Player is not in a vehicle.")
+      toast.show("ERROR", "Player is not in a vehicle.")
   end
 end
 
@@ -1377,20 +1402,20 @@ local function remove_player_godmode(player_idx)
         natives.ped_applyDamageToPed(player_ped, 1000, 0, 0, 0)
         natives.fire_addExplosion(x, y, z, 27, 10000.0, false, true, 0.0)
     else
-        logger.logError("ERROR: Failed to gain control of the player.")
-        notifications.alertDanger("ERROR", "Failed to gain control of the player.")
+        log.error("ERROR: Failed to gain control of the player.")
+        toast.show("ERROR", "Failed to gain control of the player.")
     end
 end
 
 local function teleport_player(player_idx)
-  notifications.alertInfo("Status", "Running...")
+  toast.show("Status", "Running...")
   local player_ped = player.getPed(player_idx)
   if not natives.ped_isPedOnMount(player_ped) and 
      not natives.ped_isPedInAnyVehicle(player_ped, false) and 
      not natives.player_isPlayerRidingTrain(player_idx) then
 
       if natives.task_isPedStill(player_ped) then
-          system.yield(800)
+          thread.sleep(800)
           if natives.task_isPedStill(player_ped) then
               local local_x, local_y, local_z = player.getLocalPedCoords()
               local x, y, z = player.getCoords(player_idx)
@@ -1405,34 +1430,34 @@ local function teleport_player(player_idx)
                   natives.entity_setEntityDynamic(vehicle, true)
                   local target_pitch, target_roll, target_yaw = natives.entity_getEntityRotation(player_ped, 2)
                   natives.entity_setEntityRotation(vehicle, target_pitch, target_roll, target_yaw, 2, true)
-                  system.yield(1000)
+                  thread.sleep(1000)
                   sync.addEntitySyncLimit(vehicle, player_ped)
                   natives.entity_setEntityCoords(vehicle, local_x, local_y, local_z - 1.1, false, true, true, false)
-                  system.yield(600)
-                  notifications.alertInfo("Status", "Finished.")
+                  thread.sleep(600)
+                  toast.show("Status", "Finished.")
                   if natives.network_networkHasControlOfEntity(vehicle) then
-                      system.yield(1000)
+                      thread.sleep(1000)
                       spawner.deleteVehicle(vehicle)
                   else
                       utility.requestControlOfEntity(vehicle, 50)
-                      system.yield(1000)
+                      thread.sleep(1000)
                       spawner.deleteVehicle(vehicle)
                   end
               else
-                  logger.logError("ERROR: Failed to spawn the trap vehicle.")
-                  notifications.alertDanger("ERROR", "Failed to spawn the trap vehicle.")
+                  log.error("ERROR: Failed to spawn the trap vehicle.")
+                  toast.show("ERROR", "Failed to spawn the trap vehicle.")
               end
           else
-              logger.logError("ERROR: Player moved.")
-              notifications.alertDanger("ERROR", "Player moved.")
+              log.error("ERROR: Player moved.")
+              toast.show("ERROR", "Player moved.")
           end
       else
-          logger.logError("ERROR: Player is not standing still.")
-          notifications.alertDanger("ERROR", "Player is not standing still.")
+          log.error("ERROR: Player is not standing still.")
+          toast.show("ERROR", "Player is not standing still.")
       end
   else
-      logger.logError("ERROR: Player is on a mount, in a vehicle, or on a train.")
-      notifications.alertDanger("ERROR", "Player is on a mount, in a vehicle, or on a train.")
+      log.error("ERROR: Player is on a mount, in a vehicle, or on a train.")
+      toast.show("ERROR", "Player is on a mount, in a vehicle, or on a train.")
   end
 end
 
@@ -1445,12 +1470,12 @@ local function teleport_vehicle(player_idx)
         if vehicle and utility.requestControlOfEntity(vehicle, 50) then
             natives.entity_setEntityCoords(vehicle, local_x, local_y, local_z, false, false, false, true)
         else
-            logger.logError("ERROR: Failed to get control of the vehicle.")
-            notifications.alertDanger("ERROR: Failed to get control of the vehicle.")
+            log.error("ERROR: Failed to get control of the vehicle.")
+            toast.show("ERROR: Failed to get control of the vehicle.")
         end
     else
-        logger.logError("ERROR: Player is not in a vehicle.")
-        notifications.alertDanger("ERROR: Player is not in a vehicle.")
+        log.error("ERROR: Player is not in a vehicle.")
+        toast.show("ERROR: Player is not in a vehicle.")
     end
 end
 
@@ -1473,7 +1498,7 @@ end
 
 function detach_entity(entity)
     natives.entity_detachEntity(entity, true, false)
-    logger.logInfo("Detached")
+    log.info("Detached")
 end
 
 function cleanup_entity(local_ped, entity, pos_x, pos_y, pos_z)
@@ -1482,7 +1507,7 @@ function cleanup_entity(local_ped, entity, pos_x, pos_y, pos_z)
     natives.entity_freezeEntityPosition(local_ped, false)
     natives.entity_setEntityVisible(local_ped, true)
     spawner.deleteVehicle(entity)
-    logger.logInfo("Finished")
+    log.info("Finished")
 end
 
 -- Credit goes to jamison for finding this.
@@ -1494,8 +1519,8 @@ local function awning_crash(player_idx)
     natives.streaming_setFocusEntity(focus_object)
     
     local awning_object = spawner.spawnObject(natives.misc_getHashKey("s_chuckwagonawning01b"), target_x, target_y, target_z)
-    logger.logInfo('Awning Crash Sent.')
-    system.yield(500)
+    log.info('Awning Crash Sent.')
+    thread.sleep(500)
     spawner.deleteObject(awning_object)
     spawner.deleteObject(focus_object)
 end
@@ -1510,21 +1535,21 @@ local function object_lag(player_idx)
     local target_x, target_y, target_z = player.getCoords(player_idx)
     local player_x, player_y, player_z = player.getLocalPedCoords()
 
-    local distance = math.getDistance(player_x, player_y, player_z, target_x, target_y, target_z)
+    local distance = math.sqrt(((target_x)-(player_x))^2 + ((target_y)-(player_y))^2 + ((target_z)-(player_z))^2)
 
     if distance < 1000 then
-        logger.logInfo("Too close to the target. Move at least 1000m away.")
-        notifications.alertDanger("Warning", "Too close to the target. Move at least 1000m away.")
+        log.info("Too close to the target. Move at least 1000m away.")
+        toast.show("Warning", "Too close to the target. Move at least 1000m away.")
         return
     end
 
-    logger.logInfo("Lag Sent")
+    log.info("Lag Sent")
     for i = 1, max_objects do
         local object = natives.object_createObject(object_hash, target_x, target_y, target_z - 14, true, false, true, false, false)
         table.insert(spawned_objects, object)
 
         if i % spawn_delay == 0 then
-            system.yield(0)
+            thread.sleep(0)
         else
             natives.entity_setEntityVelocity(object, 0, 0, 1)
         end
@@ -1572,15 +1597,15 @@ menu.addButton(exploits_id, 'Render Crash ~e~ [Large AOE]', '', function(player_
         
         if entity ~= 0 and natives.entity_doesEntityExist(entity) then
             attach_entity_to_entity(entity, target_ped, player_pos_x, player_pos_y, player_pos_z)
-            system.yield(1500)
+            thread.sleep(1500)
             detach_entity(entity)
-            system.yield(700)
+            thread.sleep(700)
             cleanup_entity(player.getLocalPed(), entity, self_pos_x, self_pos_y, self_pos_z)
         else
-            logger.logInfo("Failed to spawn entity.")
+            log.info("Failed to spawn entity.")
         end
     else
-        logger.logInfo("Invalid target or " .. natives.player_getPlayerName(player_idx) .. " is dead.")
+        log.info("Invalid target or " .. natives.player_getPlayerName(player_idx) .. " is dead.")
     end
     target_ped = nil
 end)
@@ -1611,12 +1636,12 @@ local function toggle_sound(toggle, sound_id, sound_set)
             sound_tick_function = function()
                 play_sound(sound_id, sound_set)
             end
-            system.registerTick(sound_tick_function)
+            -- UNSUPPORTED: registerTick(sound_tick_function) -- Use script.register_looped with proper structure
             active_tick_functions["Sound_" .. sound_id] = sound_tick_function
         end
     else
         if sound_tick_function then
-            system.unregisterTick(sound_tick_function)
+            -- UNSUPPORTED: unregisterTick(sound_tick_function) -- Manual script management needed
             active_tick_functions["Sound_" .. sound_id] = nil
             sound_tick_function = nil
         end
@@ -1625,10 +1650,10 @@ end
 
 local function bird_crash()
     utility.changePlayerModel(0x6A640A7B)
-    system.yield(200)
+    thread.sleep(200)
     local local_player = player.getLocalPed()
     natives.task_taskFlyToCoord(local_player, 0, 0, 0, 0, 0, 0)
-    system.yield(1800)
+    thread.sleep(1800)
     utility.changePlayerModel(0xF5C1611E)
 end
 
@@ -1668,7 +1693,7 @@ menu.addButton(session_id, 'Bird Crash', '', bird_crash)
 
 -- AFK Monitor
 local afk_monitor_enabled = false
-local afk_monitor_timer = system.getTickCount64()
+local afk_monitor_timer = time.milliseconds()
 
 local last_positions = {}
 local afk_start_time = {}
@@ -1699,8 +1724,8 @@ local function format_time(duration_ms)
 end
 
 local function check_afk_players()
-    if system.getTickCount64() - afk_monitor_timer > 30000 then
-        afk_monitor_timer = system.getTickCount64()
+    if time.milliseconds() - afk_monitor_timer > 30000 then
+        afk_monitor_timer = time.milliseconds()
         player.forEach(function(player_record)
             local player_ped = player_record.ped
             local current_x, current_y, current_z = player.getCoords(player_record.id)
@@ -1708,12 +1733,12 @@ local function check_afk_players()
 
             if last_pos and last_pos.x == current_x and last_pos.y == current_y and last_pos.z == current_z then
                 if player_ped and natives.task_isPedStill(player_ped) then
-                    local afk_duration = system.getTickCount64() - afk_start_time[player_record.id]
+                    local afk_duration = time.milliseconds() - afk_start_time[player_record.id]
                     local formatted_time = format_time(afk_duration)
-                    logger.logCustom('<red>Player "' .. player_record.name .. '" has been AFK for ' .. formatted_time)
+                    log.info('<red>Player "' .. player_record.name .. '" has been AFK for ' .. formatted_time)
                 end
             else
-                afk_start_time[player_record.id] = system.getTickCount64()
+                afk_start_time[player_record.id] = time.milliseconds()
             end
             last_positions[player_record.id] = {x = current_x, y = current_y, z = current_z}
         end)
@@ -1724,7 +1749,7 @@ end
 --[[
 menu.addButton('self', 'Log coords', '', function()
     local x, y, z = player.getLocalPedCoords()
-    logger.logInfo(string.format("{x = %.2f, y = %.2f, z = %.2f},", x, y, z))
+    log.info(string.format("{x = %.2f, y = %.2f, z = %.2f},", x, y, z))
 end)
 ]]
 local locations = {
@@ -1921,9 +1946,9 @@ local function area_scan()
                 local x, y, z = natives.entity_getEntityCoords(entity_handle, false, true)
                 utility.teleportToCoords(x, y, z)
                 marker_coords = {x = x, y = y, z = z}
-                logger.logInfo("Collectible found at coordinates: (" .. x .. ", " .. y .. ", " .. z .. ")")
-                notifications.alertInfo("Recovery Bot", "Collectible Found!")
-                system.registerTick(draw_marker)
+                log.info("Collectible found at coordinates: (" .. x .. ", " .. y .. ", " .. z .. ")")
+                toast.show("Recovery Bot", "Collectible Found!")
+                -- UNSUPPORTED: registerTick(draw_marker) -- Use script.register_looped with proper structure
                 active_tick_functions["draw_marker"] = draw_marker
 
                 if auto_collect then
@@ -1936,7 +1961,7 @@ local function area_scan()
             end
         end)
         if found then
-            logger.logInfo("Found a collectible nearby.")
+            log.info("Found a collectible nearby.")
             break
         end
     end
@@ -1947,13 +1972,13 @@ local function main_bot()
     if not area_scan() then
         for i = current_location, #locations do
             if not bot_active then
-                logger.logInfo("Bot stopped.")
+                log.info("Bot stopped.")
                 break
             end
             local location = locations[i]
-            logger.logInfo("Teleporting to Location " .. i .. ": (" .. location.x .. ", " .. location.y .. ", " .. location.z .. ")")
+            log.info("Teleporting to Location " .. i .. ": (" .. location.x .. ", " .. location.y .. ", " .. location.z .. ")")
             utility.teleportToCoords(location.x, location.y, location.z)
-            system.yield(6000)
+            thread.sleep(6000)
 
             if area_scan() then break end
             current_location = i + 1
@@ -1961,25 +1986,25 @@ local function main_bot()
     end
 
     if current_location > #locations then
-        logger.logInfo("All locations have been checked. No more locations to visit.")
+        log.info("All locations have been checked. No more locations to visit.")
     end
 end
 
 menu.addToggleButton(misc_id, 'AFK Monitor', 'Check Console', false, function(toggle)
     afk_monitor_enabled = toggle
     if afk_monitor_enabled then
-        afk_monitor_timer = system.getTickCount64() - 30000
+        afk_monitor_timer = time.milliseconds() - 30000
         last_positions = {}
         player.forEach(function(player_record)
-            afk_start_time[player_record.id] = system.getTickCount64()
+            afk_start_time[player_record.id] = time.milliseconds()
         end)
-        system.registerTick(check_afk_players)
+        -- UNSUPPORTED: registerTick(check_afk_players) -- Use script.register_looped with proper structure
         active_tick_functions["AFK_Monitor"] = check_afk_players
-        logger.logInfo('AFK monitoring enabled. Waiting 30sec')
+        log.info('AFK monitoring enabled. Waiting 30sec')
     else
-        system.unregisterTick(check_afk_players)
+        -- UNSUPPORTED: unregisterTick(check_afk_players) -- Manual script management needed
         active_tick_functions["AFK_Monitor"] = nil
-        logger.logInfo('AFK monitoring disabled')
+        log.info('AFK monitoring disabled')
         afk_start_time = {}
     end
 end)
@@ -1988,11 +2013,11 @@ menu.addToggleButton(misc_id, 'Collectible Scan', '', false, function(toggle)
     bot_active = toggle
     if bot_active then
         if not area_scan() then
-            logger.logInfo("No collectibles found in the area.")
-            notifications.alertInfo("Recovery Bot", "No collectibles found nearby.")
+            log.info("No collectibles found in the area.")
+            toast.show("Recovery Bot", "No collectibles found nearby.")
         end
     else
-        system.unregisterTick(draw_marker)
+        -- UNSUPPORTED: unregisterTick(draw_marker) -- Manual script management needed
         active_tick_functions["draw_marker"] = nil
         marker_coords = nil
         natives.task_clearPedTasks(player.getLocalPed(), true, true)
@@ -2003,17 +2028,17 @@ menu.addDivider(misc_id, 'Recovery Bot')
 menu.addToggleButton(misc_id, 'Collectible Bot', '~e~WARNING: ~q~Once toggled it will not turn off until it finds a collectible.~e~DO NOT UNLOAD WHILE RUNNING. ~t6~Please wait until the bot has found a collectible to unload the script.', false, function(toggle)
     bot_active = toggle
     if bot_active then
-        logger.logInfo("Bot enabled.")
-        system.registerTick(main_bot)
+        log.info("Bot enabled.")
+        -- UNSUPPORTED: registerTick(main_bot) -- Use script.register_looped with proper structure
         active_tick_functions["main_bot"] = main_bot
     else
-        system.unregisterTick(main_bot)
+        -- UNSUPPORTED: unregisterTick(main_bot) -- Manual script management needed
         active_tick_functions["main_bot"] = nil
-        system.unregisterTick(draw_marker)
+        -- UNSUPPORTED: unregisterTick(draw_marker) -- Manual script management needed
         active_tick_functions["draw_marker"] = nil
         marker_coords = nil
         natives.task_clearPedTasks(player.getLocalPed(), true, true)
-        logger.logInfo("Bot disabled.")
+        log.info("Bot disabled.")
     end
 end)
 
@@ -2023,18 +2048,18 @@ end)
 
 menu.addButton(misc_id, 'Reset Bot', '', function()
     current_location = 1
-    logger.logInfo("Bot locations reset.")
+    log.info("Bot locations reset.")
 end)
 
 -- Panic Button
 menu.addDivider('self', 'Advanced Settings')
 menu.addButton('self', 'Panic Button', 'NOTE: If you are worried you will crash when unloading then press this button.', function()
     for feature_name, tick_function in pairs(active_tick_functions) do
-        system.unregisterTick(tick_function)
-        logger.logInfo("Disabled tick function for: " .. feature_name)
+        -- UNSUPPORTED: unregisterTick(tick_function) -- Manual script management needed
+        log.info("Disabled tick function for: " .. feature_name)
         active_tick_functions[feature_name] = nil
     end
     bot_active = false
     marker_coords = nil
-    logger.logInfo("All active tick functions have been disabled.")
+    log.info("All active tick functions have been disabled.")
 end)
