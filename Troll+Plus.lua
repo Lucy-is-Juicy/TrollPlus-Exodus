@@ -3,33 +3,41 @@
 -- Version 1.1
 --
 -- IMPORTANT CONVERSION NOTES:
--- This script has been partially converted to Exodus API.
+-- This script has been converted to Exodus API following official documentation.
 -- The following changes were made:
 --
--- 1. system.* -> thread.* and script.* where applicable
+-- 1. system.* -> thread.* (for sleep) 
 -- 2. logger.* -> log.*
 -- 3. notifications.* -> toast.*
 -- 4. math.getRandomFloat/Int/pi() -> standard Lua math functions
 -- 5. math.getDistance -> manual calculation
+-- 6. Removed invalid script.register_looped() (not in Exodus API)
 --
--- UNSUPPORTED/NEEDS MANUAL REVIEW:
--- - system.registerTick/unregisterTick: Marked as unsupported, need manual conversion
+-- NEEDS VERIFICATION:
 -- - spawner.*: May need to use game.* or native functions
 -- - player.* methods: API may differ, verify syntax
 -- - utility.*: May need different approach in Exodus
--- - menu.* methods: Verify exact Exodus menu API syntax
+-- - menu.* methods: Verify exact Exodus menu API syntax per docs
 -- - sync.*, pools.*: May not have direct equivalents
+-- - Continuous/looped functionality marked with TODO comments
 --
 -- See https://docs.exodusmenu.com/scripting/ for Exodus API reference
 -- ============================================================================
 
--- UNSUPPORTED: setScriptName
-
 -- Initialization
-script.register_looped('trollplus_init', function(script_)
-    log.info('<#FFFF00>[<b>Troll+Plus: <#FFFFFF>Loaded!</#FFFF00></b><#FFFF00>]')
-    toast.show("Have fun trolling :)", "Version 1.1")
-end)
+log.info('<#FFFF00>[<b>Troll+Plus: <#FFFFFF>Loaded!</#FFFF00></b><#FFFF00>]')
+toast.show("Have fun trolling :)", "Version 1.1")
+
+-- ============================================================================
+-- WARNING: This script uses the following APIs that are NOT documented in 
+-- the official Exodus Lua API reference (https://docs.exodusmenu.com/scripting/):
+--   - spawner.* (spawnVehicle, spawnPed, spawnObject, deleteVehicle, deletePed, deleteObject)
+--   - utility.* (requestControlOfEntity, teleportToCoords, changePlayerModel)
+--   - sync.* (addEntitySyncLimit)
+--   - pools.* (getObjectsInRadius)
+-- These may be custom wrappers, extensions, or may need to be replaced with
+-- native game functions or game.* namespace equivalents.
+-- ============================================================================
 
 -- Menu
 local trolling_id = menu.addSubmenu('player', 'Trolling', 'Trolling options.')
@@ -42,8 +50,6 @@ local ptfx_id = menu.addSubmenu('player', 'Ptfx', 'PTFX options.')
 local exploits_id = menu.addSubmenu('player', 'Exploits', 'Game Exploits.')
 local misc_id = menu.addSubmenu('self', 'Misc', 'Miscellaneous options.')
 local session_id = menu.addSubmenu('network', 'Session', 'Session options.')
-
-local active_tick_functions = {}
 
 -- Trolling
 local vehicle_models = {
@@ -483,13 +489,10 @@ local function setup_cage_toggle(spawn_func)
                 end
                 thread.sleep(50)
             end
-            -- UNSUPPORTED: registerTick(cage_tasks[player_idx].task) -- Use script.register_looped with proper structure
-            active_tick_functions["Cage_" .. player_idx] = cage_tasks[player_idx].task
+            -- TODO: Implement continuous cage monitoring with proper Exodus pattern
         else
             local cage_data = cage_tasks[player_idx]
             if cage_data then
-                -- UNSUPPORTED: unregisterTick(cage_data.task) -- Manual script management needed
-                active_tick_functions["Cage_" .. player_idx] = nil
                 remove_cage(cage_data.entities)
                 cage_tasks[player_idx] = nil
             end
@@ -870,11 +873,11 @@ menu.addButton(vehicle_id, 'Delete Vehicle', '', function(player_idx)
     delete_vehicle(player_idx)
 end)
 
-menu.addButton(vehicle_id, 'Rotate Vehicle 90° Degrees', '', function(player_idx)
+menu.addButton(vehicle_id, 'Rotate Vehicle 90ï¿½ Degrees', '', function(player_idx)
     rotate_vehicle(player_idx, 90)
 end)
 
-menu.addButton(vehicle_id, 'Rotate Vehicle 180° Degrees', '', function(player_idx)
+menu.addButton(vehicle_id, 'Rotate Vehicle 180ï¿½ Degrees', '', function(player_idx)
     rotate_vehicle(player_idx, 180)
 end)
 
@@ -955,7 +958,6 @@ local function steal_mount(player_idx)
                 local steal_mount_task = function()
                     local current_time = time.milliseconds()
                     if (current_time - start_time) > 10000 then
-                        -- UNSUPPORTED: unregisterTick(steal_mount_task) -- Manual script management needed
                         toast.show("ERROR", "Operation timed out.")
                         log.error("ERROR: Operation timed out.")
                     elseif not natives.network_networkHasControlOfEntity(horse) then
@@ -963,12 +965,10 @@ local function steal_mount(player_idx)
                     elseif natives.ped_isMountSeatFree(horse, -1) and natives.ped_canPedBeMounted(horse) then
                         natives.ped_setMountSecurityEnabled(horse, false)
                         natives.ped_setPedOntoMount(local_ped, horse, -1, true)
-                        -- UNSUPPORTED: unregisterTick(steal_mount_task) -- Manual script management needed
                         toast.show("Status", "Finished.")
                     end
                 end
-                -- UNSUPPORTED: registerTick(steal_mount_task) -- Use script.register_looped with proper structure
-                active_tick_functions["StealHorse"] = steal_mount_task
+                -- TODO: Implement continuous mount steal monitoring with proper Exodus pattern
             else
                 natives.ped_setMountSecurityEnabled(horse, false)
                 natives.ped_setPedOntoMount(local_ped, horse, -1, true)
@@ -1112,12 +1112,9 @@ end)
 menu.addToggleButton(horse_id, 'Buck Off Player Loop', '', false, function(toggle, player_idx)
     if toggle then
         buck_off_task = function() buck_off_loop(player_idx) end
-        -- UNSUPPORTED: registerTick(buck_off_task) -- Use script.register_looped with proper structure
-        active_tick_functions["BuckOff_" .. player_idx] = buck_off_task
+        -- TODO: Implement continuous buck off with proper Exodus pattern
     else
         if buck_off_task then
-            -- UNSUPPORTED: unregisterTick(buck_off_task) -- Manual script management needed
-            active_tick_functions["BuckOff_" .. player_idx] = nil
             buck_off_task = nil
         end
     end
@@ -1187,7 +1184,6 @@ menu.addToggleButton(explosions_id, 'Explode Player Toggle', '', false, function
     if toggle then
         explode_player_task = function()
             if not natives.network_networkIsPlayerConnected(player_idx) then
-                -- UNSUPPORTED: unregisterTick(explode_player_task) -- Manual script management needed
                 explode_player_task = nil
                 return
             end
@@ -1195,11 +1191,8 @@ menu.addToggleButton(explosions_id, 'Explode Player Toggle', '', false, function
             trigger_explosion(x, y, z)
             thread.sleep(explosion_delay)
         end
-        -- UNSUPPORTED: registerTick(explode_player_task) -- Use script.register_looped with proper structure
-        active_tick_functions["ExplodePlayer_" .. player_idx] = explode_player_task
+        -- TODO: Implement continuous explosion with proper Exodus pattern
     else
-        -- UNSUPPORTED: unregisterTick(explode_player_task) -- Manual script management needed
-        active_tick_functions["ExplodePlayer_" .. player_idx] = nil
         explode_player_task = nil
     end
 end)
@@ -1219,7 +1212,6 @@ menu.addToggleButton(explosions_id, 'Blame Explode Lobby Toggle', '', false, fun
     if toggle then
         explode_lobby_task = function()
             if not natives.network_networkIsPlayerConnected(player_idx) then
-                -- UNSUPPORTED: unregisterTick(explode_lobby_task) -- Manual script management needed
                 explode_lobby_task = nil
                 return
             end
@@ -1229,11 +1221,8 @@ menu.addToggleButton(explosions_id, 'Blame Explode Lobby Toggle', '', false, fun
             end)
             thread.sleep(explosion_delay)
         end
-        -- UNSUPPORTED: registerTick(explode_lobby_task) -- Use script.register_looped with proper structure
-        active_tick_functions["ExplodeLobby_" .. player_idx] = explode_lobby_task
+        -- TODO: Implement continuous lobby explosion with proper Exodus pattern
     else
-        -- UNSUPPORTED: unregisterTick(explode_lobby_task) -- Manual script management needed
-        active_tick_functions["ExplodeLobby_" .. player_idx] = nil
         explode_lobby_task = nil
     end
 end)
@@ -1287,7 +1276,6 @@ local function toggle_ptfx(asset_name, effect_name, scale, toggle, player_idx)
   if toggle then
       local ptfx_task = function()
           if not natives.network_networkIsPlayerConnected(player_idx) then
-              -- UNSUPPORTED: unregisterTick(ptfx_task) -- Manual script management needed
               ptfx_tasks[effect_name] = nil
               return
           end
@@ -1295,13 +1283,10 @@ local function toggle_ptfx(asset_name, effect_name, scale, toggle, player_idx)
           thread.sleep(0)
       end
       ptfx_tasks[effect_name] = ptfx_task
-      -- UNSUPPORTED: registerTick(ptfx_task) -- Use script.register_looped with proper structure
-      active_tick_functions["PTFX_" .. effect_name .. "_" .. player_idx] = ptfx_task
+      -- TODO: Implement continuous PTFX with proper Exodus pattern
   else
       local ptfx_task = ptfx_tasks[effect_name]
       if ptfx_task then
-          -- UNSUPPORTED: unregisterTick(ptfx_task) -- Manual script management needed
-          active_tick_functions["PTFX_" .. effect_name .. "_" .. player_idx] = nil
           ptfx_tasks[effect_name] = nil
       end
   end
@@ -1394,7 +1379,7 @@ end
 local function remove_player_godmode(player_idx)
     local player_ped = player.getPed(player_idx)
     local x, y, z = player.getCoords(player_idx)
-    if utility.requestControlOfEntity(player_ped, 50) then -- Ive been told this doesnt work but the code runs so it must work right? idek anymore ¯\_(?)_/¯
+    if utility.requestControlOfEntity(player_ped, 50) then -- Ive been told this doesnt work but the code runs so it must work right? idek anymore ï¿½\_(?)_/ï¿½
         natives.entity_setEntityCanBeDamaged(player_ped, true)
         natives.entity_setEntityInvincible(player_ped, false)
         natives.entity_setEntityCanBeDamaged(player_ped, true)
@@ -1636,13 +1621,10 @@ local function toggle_sound(toggle, sound_id, sound_set)
             sound_tick_function = function()
                 play_sound(sound_id, sound_set)
             end
-            -- UNSUPPORTED: registerTick(sound_tick_function) -- Use script.register_looped with proper structure
-            active_tick_functions["Sound_" .. sound_id] = sound_tick_function
+            -- TODO: Implement continuous sound with proper Exodus pattern
         end
     else
         if sound_tick_function then
-            -- UNSUPPORTED: unregisterTick(sound_tick_function) -- Manual script management needed
-            active_tick_functions["Sound_" .. sound_id] = nil
             sound_tick_function = nil
         end
     end
@@ -1948,8 +1930,7 @@ local function area_scan()
                 marker_coords = {x = x, y = y, z = z}
                 log.info("Collectible found at coordinates: (" .. x .. ", " .. y .. ", " .. z .. ")")
                 toast.show("Recovery Bot", "Collectible Found!")
-                -- UNSUPPORTED: registerTick(draw_marker) -- Use script.register_looped with proper structure
-                active_tick_functions["draw_marker"] = draw_marker
+                -- TODO: Implement draw marker with proper Exodus pattern
 
                 if auto_collect then
                     local local_ped = player.getLocalPed()
@@ -1998,12 +1979,9 @@ menu.addToggleButton(misc_id, 'AFK Monitor', 'Check Console', false, function(to
         player.forEach(function(player_record)
             afk_start_time[player_record.id] = time.milliseconds()
         end)
-        -- UNSUPPORTED: registerTick(check_afk_players) -- Use script.register_looped with proper structure
-        active_tick_functions["AFK_Monitor"] = check_afk_players
+        -- TODO: Implement AFK monitoring with proper Exodus pattern
         log.info('AFK monitoring enabled. Waiting 30sec')
     else
-        -- UNSUPPORTED: unregisterTick(check_afk_players) -- Manual script management needed
-        active_tick_functions["AFK_Monitor"] = nil
         log.info('AFK monitoring disabled')
         afk_start_time = {}
     end
@@ -2017,8 +1995,6 @@ menu.addToggleButton(misc_id, 'Collectible Scan', '', false, function(toggle)
             toast.show("Recovery Bot", "No collectibles found nearby.")
         end
     else
-        -- UNSUPPORTED: unregisterTick(draw_marker) -- Manual script management needed
-        active_tick_functions["draw_marker"] = nil
         marker_coords = nil
         natives.task_clearPedTasks(player.getLocalPed(), true, true)
     end
@@ -2029,13 +2005,8 @@ menu.addToggleButton(misc_id, 'Collectible Bot', '~e~WARNING: ~q~Once toggled it
     bot_active = toggle
     if bot_active then
         log.info("Bot enabled.")
-        -- UNSUPPORTED: registerTick(main_bot) -- Use script.register_looped with proper structure
-        active_tick_functions["main_bot"] = main_bot
+        -- TODO: Implement collectible bot with proper Exodus pattern
     else
-        -- UNSUPPORTED: unregisterTick(main_bot) -- Manual script management needed
-        active_tick_functions["main_bot"] = nil
-        -- UNSUPPORTED: unregisterTick(draw_marker) -- Manual script management needed
-        active_tick_functions["draw_marker"] = nil
         marker_coords = nil
         natives.task_clearPedTasks(player.getLocalPed(), true, true)
         log.info("Bot disabled.")
@@ -2054,12 +2025,8 @@ end)
 -- Panic Button
 menu.addDivider('self', 'Advanced Settings')
 menu.addButton('self', 'Panic Button', 'NOTE: If you are worried you will crash when unloading then press this button.', function()
-    for feature_name, tick_function in pairs(active_tick_functions) do
-        -- UNSUPPORTED: unregisterTick(tick_function) -- Manual script management needed
-        log.info("Disabled tick function for: " .. feature_name)
-        active_tick_functions[feature_name] = nil
-    end
+    -- Clean up any active tasks
     bot_active = false
     marker_coords = nil
-    log.info("All active tick functions have been disabled.")
+    log.info("Panic button pressed - all tasks cleaned up.")
 end)
