@@ -28,6 +28,17 @@
 log.info('<#FFFF00>[<b>Troll+Plus: <#FFFFFF>Loaded!</#FFFF00></b><#FFFF00>]')
 toast.show("Have fun trolling :)", "Version 1.1")
 
+-- ============================================================================
+-- WARNING: This script uses the following APIs that are NOT documented in 
+-- the official Exodus Lua API reference (https://docs.exodusmenu.com/scripting/):
+--   - spawner.* (spawnVehicle, spawnPed, spawnObject, deleteVehicle, deletePed, deleteObject)
+--   - utility.* (requestControlOfEntity, teleportToCoords, changePlayerModel)
+--   - sync.* (addEntitySyncLimit)
+--   - pools.* (getObjectsInRadius)
+-- These may be custom wrappers, extensions, or may need to be replaced with
+-- native game functions or game.* namespace equivalents.
+-- ============================================================================
+
 -- Menu
 local trolling_id = menu.addSubmenu('player', 'Trolling', 'Trolling options.')
 local annoying_id = menu.addSubmenu('player', 'Annoying', 'Annoying options.')
