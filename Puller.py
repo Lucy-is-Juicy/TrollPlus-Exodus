@@ -42,7 +42,7 @@ def init_db(db_path: str, table_name: str) -> None:
 def fetch_matches(db_path: str, table_name: str, server_name: str) -> List[Tuple]:
     """Fetch matches for the given server, newest first."""
     query = f"""
-    SELECT match_id, server, match_time, home_ip, other_ips, status
+    SELECT match_id, server, match_time, {HOME_IP_FIELD}, other_ips, status
     FROM {table_name}
     WHERE server = ?
     ORDER BY match_time DESC
@@ -59,7 +59,7 @@ def format_row(row: Tuple) -> str:
         match_time if isinstance(match_time, str) else
         match_time.strftime("%Y-%m-%d %H:%M:%S") if match_time else ""
     )
-    return f"{match_id:<10}|{server:<20}|{time_str:<25}|{home_ip or '':<20}|{other_ips or '':<30}|{status or '':<15}"
+    return f"{match_id:<10}|{server:<20}|{time_str:<25}|{home_ip if home_ip is not None else 'N/A':<20}|{other_ips or '':<30}|{status or '':<15}"
 
 def write_results_to_file(filename: str, server_name: str, rows: List[Tuple]) -> None:
     """Write the fetched rows to a text file."""
